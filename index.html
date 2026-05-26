@@ -609,7 +609,7 @@
     <div class="nav-inner">
       <div class="logo">Cine<span>Stream</span></div>
       <div id="navMessage" style="flex: 1; text-align: center; color: var(--muted); font-weight: 600; padding: 0 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-        Made for Dhruvi and Harshil to watch stuff together :)
+        Made for Dhruvi and Harshil to watch stuff :)
       </div>
       <div class="search-box">
         <input type="text" id="searchInput" placeholder="Search movies & TV by name (or paste TMDB ID)..." autocomplete="off" />
@@ -676,6 +676,7 @@
             </div>
           </div>
 
+          <button class="btn btn-secondary" id="subtitleToggleBtn" style="display:none; padding:8px 12px;" type="button">Subtitles: On</button>
           <button class="btn btn-secondary" onclick="toggleFullscreen()">Fullscreen</button>
         </div>
       </div>
@@ -927,6 +928,9 @@
       seasonsCount: null
     };
 
+    let subtitlesEnabled = true;
+    let localSubManifest = null;
+
     function isTmdbConfigured() {
       return typeof TMDB_API_KEY === "string" && TMDB_API_KEY.trim().length > 0;
     }
@@ -953,7 +957,44 @@
       return res.json();
     }
 
+    async function loadSubManifest() {
+      try {
+        const res = await fetch("subtitles/the-oc/manifest.json");
+        if (res.ok) localSubManifest = await res.json();
+      } catch (_) {}
+    }
+
+    function hasLocalSubsForCurrent() {
+      if (!localSubManifest || current.type !== "tv") return false;
+      if (Number(current.tmdbId) !== Number(localSubManifest.tmdbId)) return false;
+      if (Number(current.season) !== Number(localSubManifest.season)) return false;
+      return Boolean(localSubManifest.episodes[String(current.episode)]);
+    }
+
+    function getLocalSubtitleUrl() {
+      if (!subtitlesEnabled || !hasLocalSubsForCurrent()) return null;
+      const rel = localSubManifest.episodes[String(current.episode)];
+      return new URL(rel, window.location.href).href;
+    }
+
+    function updateSubtitleToggleUI() {
+      const btn = document.getElementById("subtitleToggleBtn");
+      if (!btn) return;
+      const available = hasLocalSubsForCurrent();
+      btn.style.display = available ? "inline-block" : "none";
+      if (!available) return;
+      btn.textContent = subtitlesEnabled ? "Subtitles: On" : "Subtitles: Off";
+      btn.classList.toggle("btn-primary", subtitlesEnabled);
+      btn.classList.toggle("btn-secondary", !subtitlesEnabled);
+    }
+
     function getEmbedUrl({ type, tmdbId, season, episode }) {
+      const subUrl = getLocalSubtitleUrl();
+      if (subUrl) {
+        const params = `sub_file=${encodeURIComponent(subUrl)}&sub_label=${encodeURIComponent("English")}`;
+        if (type === "tv") return `https://vidlink.pro/tv/${tmdbId}/${season}/${episode}?${params}`;
+        return `https://vidlink.pro/movie/${tmdbId}?${params}`;
+      }
       if (type === "tv") return `https://www.vidking.net/embed/tv/${tmdbId}/${season}/${episode}`;
       return `https://www.vidking.net/embed/movie/${tmdbId}`;
     }
@@ -980,12 +1021,14 @@
 
       document.getElementById("playerTitle").textContent = type === "tv" ? "TV Player" : "Movie Player";
       renderPlayer();
+      updateSubtitleToggleUI();
       refreshMetadata().catch(() => {});
     }
 
     function renderPlayer() {
       const iframe = document.querySelector(".player-wrap iframe");
       iframe.src = getEmbedUrl(current);
+      updateSubtitleToggleUI();
 
       // Fallback UI update (works even without TMDB key)
       const fallbackTitle =
@@ -1497,10 +1540,18 @@
       }
     }
 
+    document.getElementById("subtitleToggleBtn").addEventListener("click", () => {
+      subtitlesEnabled = !subtitlesEnabled;
+      updateSubtitleToggleUI();
+      renderPlayer();
+    });
+
     // initial UI state
-    setActiveType("movie");
-    renderPlayer();
-    refreshMetadata().catch(() => {});
+    loadSubManifest().finally(() => {
+      setActiveType("movie");
+      renderPlayer();
+      refreshMetadata().catch(() => {});
+    });
   </script>
 </body>
 </html>
