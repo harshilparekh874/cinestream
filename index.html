@@ -59,6 +59,7 @@
     }
 
     .search-box {
+      position: relative;
       display: flex;
       align-items: center;
       background: rgba(255,255,255,0.04);
@@ -74,6 +75,65 @@
       outline: none;
       color: white;
       width: 100%;
+    }
+
+    .search-results {
+      position: absolute;
+      top: calc(100% + 10px);
+      left: 0;
+      right: 0;
+      z-index: 100;
+      background: rgba(17, 24, 39, 0.98);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      display: none;
+      box-shadow: 0 18px 40px rgba(0,0,0,0.55);
+    }
+
+    .search-results .result {
+      padding: 10px 12px;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      cursor: pointer;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .search-results .result:last-child {
+      border-bottom: none;
+    }
+
+    .search-results .result:hover {
+      background: rgba(37, 99, 235, 0.12);
+    }
+
+    .result .left {
+      min-width: 0;
+    }
+
+    .result .title {
+      font-weight: 650;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .result .meta {
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-top: 2px;
+    }
+
+    .result .tag {
+      color: white;
+      font-size: 0.78rem;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.05);
+      height: fit-content;
+      white-space: nowrap;
     }
 
     .hero,
@@ -413,6 +473,7 @@
       <div class="logo">Cine<span>Stream</span></div>
       <div class="search-box">
         <input type="text" id="searchInput" placeholder="Search movies & TV by name (or paste TMDB ID)..." autocomplete="off" />
+        <div class="search-results" id="searchResults"></div>
       </div>
     </div>
   </nav>
@@ -700,7 +761,7 @@
   <script>
     // ---- Config ----
     // Add your TMDB v3 API key (Settings → API). Without it, title search + metadata won't work.
-    const TMDB_API_KEY = "";
+    const TMDB_API_KEY = "d7c9932ca6eaed0388919da906dcedc0";
     const TMDB_BASE = "https://api.themoviedb.org/3";
     const TMDB_IMAGE = "https://image.tmdb.org/t/p/w780";
 
@@ -907,6 +968,13 @@
       }
 
       // Name search via TMDB (preferred)
+      // If dropdown is open, enter picks the first result.
+      if (searchState.results.length > 0) {
+        loadFromSearchResult(searchState.results[0]);
+        hideSearchResults();
+        return;
+      }
+
       searchAndLoadByName(query).catch(() => {
         // Fallback: click matching recommended card
         const cards = Array.from(document.querySelectorAll(".movie-card"));
@@ -914,6 +982,135 @@
         if (match) match.click();
         else alert("TMDB search needs an API key. Paste a TMDB ID or click a recommended title.");
       });
+    });
+
+    // ---- Search dropdown (TMDB) ----
+    const searchResultsEl = document.getElementById("searchResults");
+    const searchInputEl = document.getElementById("searchInput");
+    const searchState = { timer: null, results: [] };
+
+    function showSearchResults() {
+      if (!searchState.results.length) {
+        searchResultsEl.style.display = "none";
+        return;
+      }
+      searchResultsEl.style.display = "block";
+    }
+
+    function hideSearchResults() {
+      searchResultsEl.style.display = "none";
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#039;" }[c]));
+    }
+
+    function normalizeSearchResult(item) {
+      const mediaType = item.media_type || (current.type === "tv" ? "tv" : "movie");
+      const isTv = mediaType === "tv";
+      const title = isTv ? item.name : item.title;
+      const date = isTv ? item.first_air_date : item.release_date;
+      return {
+        media_type: mediaType,
+        id: item.id,
+        title: title || "-",
+        year: formatYear(date),
+        rating: item.vote_average ? item.vote_average.toFixed(1) : "-"
+      };
+    }
+
+    function renderSearchDropdown(results) {
+      searchState.results = results;
+      if (!results.length) {
+        searchResultsEl.innerHTML = `<div class="result"><div class="left"><div class="title">No results</div><div class="meta">Try a different name</div></div><div class="tag">TMDB</div></div>`;
+        showSearchResults();
+        return;
+      }
+
+      searchResultsEl.innerHTML = results.slice(0, 8).map(r => {
+        const tag = r.media_type === "tv" ? "TV" : "Movie";
+        return `
+          <div class="result" data-id="${r.id}" data-type="${r.media_type}">
+            <div class="left">
+              <div class="title">${escapeHtml(r.title)}</div>
+              <div class="meta">${escapeHtml(r.year)} • ⭐ ${escapeHtml(r.rating)}</div>
+            </div>
+            <div class="tag">${tag}</div>
+          </div>
+        `;
+      }).join("");
+
+      showSearchResults();
+    }
+
+    function loadFromSearchResult(r) {
+      const isTv = r.media_type === "tv";
+      current.type = isTv ? "tv" : "movie";
+      current.tmdbId = Number(r.id);
+      // reset season/episode when jumping to a new TV show
+      if (isTv) {
+        current.season = 1;
+        current.episode = 1;
+        const sInput = document.getElementById("seasonInput");
+        const eInput = document.getElementById("episodeInput");
+        if (sInput) sInput.value = "1";
+        if (eInput) eInput.value = "1";
+      }
+      setActiveType(current.type);
+      renderPlayer();
+      refreshMetadata().catch(() => {});
+      window.scrollTo({ top: document.getElementById("playerSection").offsetTop - 80, behavior: "smooth" });
+    }
+
+    searchResultsEl.addEventListener("mousedown", (e) => {
+      const row = e.target.closest(".result");
+      if (!row) return;
+      const id = Number(row.getAttribute("data-id"));
+      const type = row.getAttribute("data-type");
+      if (!id || !type) return;
+      loadFromSearchResult({ id, media_type: type, title: row.innerText });
+      hideSearchResults();
+    });
+
+    document.addEventListener("mousedown", (e) => {
+      if (e.target.closest(".search-box")) return;
+      hideSearchResults();
+    });
+
+    searchInputEl.addEventListener("focus", () => {
+      if (searchState.results.length) showSearchResults();
+    });
+
+    searchInputEl.addEventListener("input", () => {
+      const query = searchInputEl.value.trim();
+
+      // Keep old card filter behavior, but power "normal search" via TMDB too.
+      if (!query || /^\d+$/.test(query)) {
+        searchState.results = [];
+        hideSearchResults();
+        return;
+      }
+
+      if (!isTmdbConfigured()) return;
+
+      clearTimeout(searchState.timer);
+      searchState.timer = setTimeout(async () => {
+        try {
+          // Multi search returns both movies + tv (best UX).
+          const data = await tmdbFetch("/search/multi", {
+            query,
+            include_adult: "false",
+            page: 1
+          });
+          const results = (data.results || [])
+            .filter(r => r.media_type === "movie" || r.media_type === "tv")
+            .map(normalizeSearchResult);
+          renderSearchDropdown(results);
+        } catch (err) {
+          searchState.results = [];
+          hideSearchResults();
+        }
+      }, 250);
     });
 
     // ---- TV controls ----
