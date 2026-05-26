@@ -412,7 +412,7 @@
     <div class="nav-inner">
       <div class="logo">Cine<span>Stream</span></div>
       <div class="search-box">
-        <input type="text" id="searchInput" placeholder="Search movies or TMDB ID..." />
+        <input type="text" id="searchInput" placeholder="Search movies & TV by name (or paste TMDB ID)..." autocomplete="off" />
       </div>
     </div>
   </nav>
@@ -459,8 +459,24 @@
   <main class="page">
     <section class="main-panel" id="playerSection">
       <div class="player-header">
-        <h2>Movie Player</h2>
-        <button class="btn btn-secondary" onclick="toggleFullscreen()">Fullscreen</button>
+        <h2 id="playerTitle">Player</h2>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <div id="typeToggle" style="display:flex; gap:8px; background: rgba(255,255,255,0.04); border:1px solid var(--border); padding:6px; border-radius:14px;">
+            <button class="btn btn-secondary" id="typeMovieBtn" style="padding:8px 12px;">Movie</button>
+            <button class="btn btn-secondary" id="typeTvBtn" style="padding:8px 12px;">TV</button>
+          </div>
+
+          <div id="tvControls" style="display:none; gap:8px; align-items:center;">
+            <div style="display:flex; gap:8px; align-items:center; background: rgba(255,255,255,0.04); border:1px solid var(--border); padding:6px 10px; border-radius:14px;">
+              <span style="color: var(--muted); font-size: 0.85rem;">S</span>
+              <input id="seasonInput" type="number" min="1" value="1" style="width:64px; background:transparent; border:none; outline:none; color:white;" />
+              <span style="color: var(--muted); font-size: 0.85rem;">E</span>
+              <input id="episodeInput" type="number" min="1" value="1" style="width:64px; background:transparent; border:none; outline:none; color:white;" />
+            </div>
+          </div>
+
+          <button class="btn btn-secondary" onclick="toggleFullscreen()">Fullscreen</button>
+        </div>
       </div>
 
       <div class="player-wrap" id="playerWrap">
@@ -678,17 +694,100 @@
   </section>
 
   <footer>
-    Player route format: <strong>/embed/movie/{tmdbId}</strong>
+    Player route format: <strong>/embed/movie/{tmdbId}</strong> or <strong>/embed/tv/{tmdbId}/{season}/{episode}</strong>
   </footer>
 
   <script>
-    function getEmbedUrl(tmdbId) {
+    // ---- Config ----
+    // Add your TMDB v3 API key (Settings → API). Without it, title search + metadata won't work.
+    const TMDB_API_KEY = "";
+    const TMDB_BASE = "https://api.themoviedb.org/3";
+    const TMDB_IMAGE = "https://image.tmdb.org/t/p/w780";
+
+    // ---- State ----
+    let current = {
+      type: "movie", // "movie" | "tv"
+      tmdbId: 1078605,
+      season: 1,
+      episode: 1
+    };
+
+    function isTmdbConfigured() {
+      return typeof TMDB_API_KEY === "string" && TMDB_API_KEY.trim().length > 0;
+    }
+
+    function tmdbUrl(path, params = {}) {
+      const url = new URL(`${TMDB_BASE}${path}`);
+      url.searchParams.set("api_key", TMDB_API_KEY);
+      url.searchParams.set("language", "en-US");
+      Object.entries(params).forEach(([k, v]) => {
+        if (v === undefined || v === null || v === "") return;
+        url.searchParams.set(k, String(v));
+      });
+      return url.toString();
+    }
+
+    async function tmdbFetch(path, params) {
+      const res = await fetch(tmdbUrl(path, params));
+      if (!res.ok) throw new Error(`TMDB ${res.status}`);
+      return res.json();
+    }
+
+    function getEmbedUrl({ type, tmdbId, season, episode }) {
+      if (type === "tv") return `https://www.vidking.net/embed/tv/${tmdbId}/${season}/${episode}`;
       return `https://www.vidking.net/embed/movie/${tmdbId}`;
     }
 
-    function loadMovieByTmdbId(tmdbId) {
+    function setActiveType(type) {
+      current.type = type;
+      document.getElementById("tvControls").style.display = type === "tv" ? "flex" : "none";
+
+      // button styling (quick visual state)
+      const movieBtn = document.getElementById("typeMovieBtn");
+      const tvBtn = document.getElementById("typeTvBtn");
+      if (type === "movie") {
+        movieBtn.classList.add("btn-primary");
+        movieBtn.classList.remove("btn-secondary");
+        tvBtn.classList.add("btn-secondary");
+        tvBtn.classList.remove("btn-primary");
+      } else {
+        tvBtn.classList.add("btn-primary");
+        tvBtn.classList.remove("btn-secondary");
+        movieBtn.classList.add("btn-secondary");
+        movieBtn.classList.remove("btn-primary");
+      }
+
+      document.getElementById("playerTitle").textContent = type === "tv" ? "TV Player" : "Movie Player";
+      renderPlayer();
+      refreshMetadata().catch(() => {});
+    }
+
+    function renderPlayer() {
       const iframe = document.querySelector(".player-wrap iframe");
-      iframe.src = getEmbedUrl(tmdbId);
+      iframe.src = getEmbedUrl(current);
+
+      // Fallback UI update (works even without TMDB key)
+      const fallbackTitle =
+        current.type === "tv"
+          ? `TMDB TV ${current.tmdbId} (S${current.season}E${current.episode})`
+          : `TMDB Movie ${current.tmdbId}`;
+      document.getElementById("movieTitle").textContent = fallbackTitle;
+      document.getElementById("heroTitle").textContent = fallbackTitle;
+
+      document.getElementById("heroText").textContent =
+        current.type === "tv"
+          ? `Playback loaded from /embed/tv/${current.tmdbId}/${current.season}/${current.episode}`
+          : `Playback loaded from /embed/movie/${current.tmdbId}`;
+
+      document.getElementById("heroTmdbId").textContent = String(current.tmdbId);
+      document.getElementById("movieTmdbId").textContent = String(current.tmdbId);
+    }
+
+    function loadMovieByTmdbId(tmdbId) {
+      current.type = "movie";
+      current.tmdbId = Number(tmdbId);
+      setActiveType("movie");
+      renderPlayer();
 
       const title = `TMDB Movie ${tmdbId}`;
       document.getElementById("movieTitle").textContent = title;
@@ -717,11 +816,16 @@
         top: document.getElementById("playerSection").offsetTop - 80,
         behavior: "smooth"
       });
+
+      refreshMetadata().catch(() => {});
     }
 
     function loadMovie(movie) {
+      current.type = "movie";
+      current.tmdbId = Number(movie.tmdbId);
+      setActiveType("movie");
       const iframe = document.querySelector(".player-wrap iframe");
-      iframe.src = movie.embed || getEmbedUrl(movie.tmdbId);
+      iframe.src = movie.embed || getEmbedUrl(current);
 
       document.getElementById("movieTitle").textContent = movie.title;
       document.getElementById("movieGenre").textContent = movie.genre;
@@ -749,6 +853,8 @@
         top: document.getElementById("playerSection").offsetTop - 80,
         behavior: "smooth"
       });
+
+      refreshMetadata().catch(() => {});
     }
 
     function addToWatchlist() {
@@ -793,18 +899,152 @@
       if (!query) return;
 
       if (/^\d+$/.test(query)) {
-        loadMovieByTmdbId(query);
+        // Numeric input = TMDB id (uses current type)
+        current.tmdbId = Number(query);
+        renderPlayer();
+        refreshMetadata().catch(() => {});
         return;
       }
 
-      const cards = Array.from(document.querySelectorAll(".movie-card"));
-      const match = cards.find(card => card.innerText.toLowerCase().includes(query.toLowerCase()));
-      if (match) {
-        match.click();
-      } else {
-        alert("Enter a valid TMDB ID or a movie title from the list.");
-      }
+      // Name search via TMDB (preferred)
+      searchAndLoadByName(query).catch(() => {
+        // Fallback: click matching recommended card
+        const cards = Array.from(document.querySelectorAll(".movie-card"));
+        const match = cards.find(card => card.innerText.toLowerCase().includes(query.toLowerCase()));
+        if (match) match.click();
+        else alert("TMDB search needs an API key. Paste a TMDB ID or click a recommended title.");
+      });
     });
+
+    // ---- TV controls ----
+    document.getElementById("seasonInput").addEventListener("input", function () {
+      const v = Number(this.value) || 1;
+      current.season = Math.max(1, v);
+      if (current.type === "tv") renderPlayer();
+    });
+
+    document.getElementById("episodeInput").addEventListener("input", function () {
+      const v = Number(this.value) || 1;
+      current.episode = Math.max(1, v);
+      if (current.type === "tv") renderPlayer();
+    });
+
+    // ---- Type toggle ----
+    document.getElementById("typeMovieBtn").addEventListener("click", () => setActiveType("movie"));
+    document.getElementById("typeTvBtn").addEventListener("click", () => setActiveType("tv"));
+
+    async function searchAndLoadByName(query) {
+      if (!isTmdbConfigured()) throw new Error("TMDB key missing");
+
+      const type = current.type;
+      const data = await tmdbFetch(type === "tv" ? "/search/tv" : "/search/movie", {
+        query,
+        include_adult: "false",
+        page: 1
+      });
+
+      const first = (data && data.results && data.results[0]) ? data.results[0] : null;
+      if (!first) {
+        alert(`No ${type === "tv" ? "TV shows" : "movies"} found for "${query}".`);
+        return;
+      }
+
+      current.tmdbId = Number(first.id);
+      renderPlayer();
+      await refreshMetadata();
+      window.scrollTo({
+        top: document.getElementById("playerSection").offsetTop - 80,
+        behavior: "smooth"
+      });
+    }
+
+    function formatYear(dateStr) {
+      if (!dateStr) return "-";
+      const y = String(dateStr).slice(0, 4);
+      return y || "-";
+    }
+
+    function formatRuntimeMinutes(min) {
+      if (!min || Number.isNaN(Number(min))) return "-";
+      return `${min} min`;
+    }
+
+    function pickGenres(genres) {
+      if (!Array.isArray(genres) || genres.length === 0) return "Unknown";
+      return genres[0].name || "Unknown";
+    }
+
+    async function refreshMetadata() {
+      if (!isTmdbConfigured()) return;
+
+      const type = current.type;
+      const id = current.tmdbId;
+
+      if (type === "movie") {
+        const [details, credits] = await Promise.all([
+          tmdbFetch(`/movie/${id}`),
+          tmdbFetch(`/movie/${id}/credits`)
+        ]);
+
+        const director = (credits.crew || []).find(c => c.job === "Director");
+        const studio = (details.production_companies || [])[0];
+
+        document.getElementById("movieTitle").textContent = details.title || `TMDB Movie ${id}`;
+        document.getElementById("movieGenre").textContent = pickGenres(details.genres);
+        document.getElementById("movieYear").textContent = formatYear(details.release_date);
+        document.getElementById("movieRuntime").textContent = formatRuntimeMinutes(details.runtime);
+        document.getElementById("movieLanguage").textContent = (details.spoken_languages && details.spoken_languages[0] && details.spoken_languages[0].english_name) ? details.spoken_languages[0].english_name : "Unknown";
+        document.getElementById("movieRating").textContent = details.vote_average ? details.vote_average.toFixed(1) : "-";
+        document.getElementById("movieDescription").textContent = details.overview || "No overview available.";
+        document.getElementById("movieDirector").textContent = director ? director.name : "-";
+        document.getElementById("movieStudio").textContent = studio ? studio.name : "-";
+        document.getElementById("movieRelease").textContent = details.release_date || "-";
+        document.getElementById("movieTmdbId").textContent = String(id);
+
+        document.getElementById("heroTitle").textContent = details.title || "Featured Movie Night";
+        document.getElementById("heroText").textContent = details.overview || `Playback loaded from /embed/movie/${id}`;
+        document.getElementById("heroGenre").textContent = pickGenres(details.genres);
+        document.getElementById("heroYear").textContent = formatYear(details.release_date);
+        document.getElementById("heroRuntime").textContent = details.runtime ? `${Math.floor(details.runtime / 60)}h ${details.runtime % 60}m` : "-";
+        document.getElementById("heroQuality").textContent = "HD";
+        document.getElementById("heroScore").textContent = details.vote_average ? `${details.vote_average.toFixed(1)} / 10` : "- / 10";
+        document.getElementById("heroNowPlaying").textContent = details.title || "-";
+        document.getElementById("heroTmdbId").textContent = String(id);
+      } else {
+        const details = await tmdbFetch(`/tv/${id}`);
+
+        const runtime = Array.isArray(details.episode_run_time) && details.episode_run_time.length ? details.episode_run_time[0] : null;
+        const studio = (details.networks || [])[0];
+        const creator = (details.created_by || [])[0];
+
+        document.getElementById("movieTitle").textContent = details.name || `TMDB TV ${id}`;
+        document.getElementById("movieGenre").textContent = pickGenres(details.genres);
+        document.getElementById("movieYear").textContent = formatYear(details.first_air_date);
+        document.getElementById("movieRuntime").textContent = runtime ? `${runtime} min/ep` : "-";
+        document.getElementById("movieLanguage").textContent = details.original_language ? details.original_language.toUpperCase() : "Unknown";
+        document.getElementById("movieRating").textContent = details.vote_average ? details.vote_average.toFixed(1) : "-";
+        document.getElementById("movieDescription").textContent = details.overview || "No overview available.";
+        document.getElementById("movieDirector").textContent = creator ? creator.name : "-";
+        document.getElementById("movieStudio").textContent = studio ? studio.name : "-";
+        document.getElementById("movieRelease").textContent = details.first_air_date || "-";
+        document.getElementById("movieTmdbId").textContent = String(id);
+
+        document.getElementById("heroTitle").textContent = details.name || "Featured Show Night";
+        document.getElementById("heroText").textContent = details.overview || `Playback loaded from /embed/tv/${id}/${current.season}/${current.episode}`;
+        document.getElementById("heroGenre").textContent = pickGenres(details.genres);
+        document.getElementById("heroYear").textContent = formatYear(details.first_air_date);
+        document.getElementById("heroRuntime").textContent = runtime ? `${runtime}m/ep` : "-";
+        document.getElementById("heroQuality").textContent = "HD";
+        document.getElementById("heroScore").textContent = details.vote_average ? `${details.vote_average.toFixed(1)} / 10` : "- / 10";
+        document.getElementById("heroNowPlaying").textContent = details.name || "-";
+        document.getElementById("heroTmdbId").textContent = String(id);
+      }
+    }
+
+    // initial UI state
+    setActiveType("movie");
+    renderPlayer();
+    refreshMetadata().catch(() => {});
   </script>
 </body>
 </html>
