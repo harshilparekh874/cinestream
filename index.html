@@ -253,6 +253,26 @@
       overflow: hidden;
     }
 
+    .episode-read-more {
+      margin-top: 8px;
+      display: inline-flex;
+      align-items: center;
+      background: transparent;
+      border: none;
+      color: rgba(147, 197, 253, 0.95);
+      cursor: pointer;
+      padding: 0;
+      font-size: 0.88rem;
+      font-weight: 600;
+    }
+
+    .episode-card.expanded .episode-overview {
+      display: block;
+      -webkit-line-clamp: unset;
+      line-clamp: unset;
+      overflow: visible;
+    }
+
     .hero,
     .page,
     .bottom-sections {
@@ -588,6 +608,9 @@
   <nav class="navbar">
     <div class="nav-inner">
       <div class="logo">Cine<span>Stream</span></div>
+      <div id="navMessage" style="flex: 1; text-align: center; color: var(--muted); font-weight: 600; padding: 0 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+        Made for Dhruvi and Harshil to watch stuff together :)
+      </div>
       <div class="search-box">
         <input type="text" id="searchInput" placeholder="Search movies & TV by name (or paste TMDB ID)..." autocomplete="off" />
         <div class="search-results" id="searchResults"></div>
@@ -1245,6 +1268,7 @@
         const title = `E${ep.episode_number} • ${ep.name || "Episode"}`;
         const subtitle = ep.air_date ? `${ep.air_date}` : "";
         const overview = ep.overview || "No description available.";
+        const showReadMore = overview.length > 140;
         return `
           <div class="episode-card ${active}" data-episode="${ep.episode_number}">
             <img class="episode-still" src="${still}" alt="" loading="lazy" onerror="this.style.display='none'" />
@@ -1252,6 +1276,7 @@
               <div class="episode-title">${escapeHtml(title)}</div>
               <div class="episode-subtitle">${escapeHtml(subtitle)}</div>
               <div class="episode-overview">${escapeHtml(overview)}</div>
+              ${showReadMore ? `<button class="episode-read-more" type="button" data-action="toggle-overview">Read more</button>` : ``}
             </div>
           </div>
         `;
@@ -1259,6 +1284,16 @@
     }
 
     episodeGridEl.addEventListener("click", (e) => {
+      const readMoreBtn = e.target.closest("[data-action='toggle-overview']");
+      if (readMoreBtn) {
+        const card = e.target.closest(".episode-card");
+        if (!card) return;
+        const expanded = card.classList.toggle("expanded");
+        readMoreBtn.textContent = expanded ? "Read less" : "Read more";
+        e.stopPropagation();
+        return;
+      }
+
       const card = e.target.closest(".episode-card");
       if (!card) return;
       const ep = Number(card.getAttribute("data-episode")) || 1;
