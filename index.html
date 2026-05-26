@@ -94,7 +94,6 @@
     .search-results .result {
       padding: 10px 12px;
       display: flex;
-      justify-content: space-between;
       gap: 10px;
       cursor: pointer;
       border-bottom: 1px solid rgba(255,255,255,0.06);
@@ -108,8 +107,19 @@
       background: rgba(37, 99, 235, 0.12);
     }
 
+    .result .poster {
+      width: 40px;
+      height: 60px;
+      border-radius: 10px;
+      object-fit: cover;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.06);
+      flex: 0 0 auto;
+    }
+
     .result .left {
       min-width: 0;
+      flex: 1 1 auto;
     }
 
     .result .title {
@@ -134,6 +144,113 @@
       background: rgba(255,255,255,0.05);
       height: fit-content;
       white-space: nowrap;
+    }
+
+    .episode-browser {
+      display: none;
+      margin: 0 20px 20px;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      background: rgba(255,255,255,0.02);
+      overflow: hidden;
+    }
+
+    .episode-browser-header {
+      padding: 14px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .episode-browser-header .controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .episode-browser-header select {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      color: white;
+      padding: 10px 12px;
+      border-radius: 12px;
+      outline: none;
+    }
+
+    .episode-grid {
+      padding: 14px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    @media (max-width: 800px) {
+      .episode-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .episode-card {
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      gap: 12px;
+      padding: 12px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.03);
+      cursor: pointer;
+      transition: 0.15s ease;
+    }
+
+    .episode-card:hover {
+      transform: translateY(-1px);
+      border-color: rgba(37,99,235,0.55);
+    }
+
+    .episode-card.active {
+      border-color: rgba(37,99,235,0.85);
+      background: rgba(37,99,235,0.10);
+    }
+
+    .episode-still {
+      width: 140px;
+      height: 84px;
+      border-radius: 12px;
+      object-fit: cover;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.06);
+    }
+
+    .episode-meta {
+      min-width: 0;
+    }
+
+    .episode-title {
+      font-weight: 700;
+      margin-bottom: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .episode-subtitle {
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-bottom: 8px;
+    }
+
+    .episode-overview {
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.45;
+      display: -webkit-box;
+      line-clamp: 3;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
 
     .hero,
@@ -550,6 +667,19 @@
         </iframe>
       </div>
 
+      <div class="episode-browser" id="episodeBrowser">
+        <div class="episode-browser-header">
+          <div>
+            <strong>Episodes</strong>
+            <div style="color: var(--muted); font-size: 0.86rem;" id="episodeBrowserHint">Select a season to browse episodes.</div>
+          </div>
+          <div class="controls">
+            <select id="seasonSelect" aria-label="Season"></select>
+          </div>
+        </div>
+        <div class="episode-grid" id="episodeGrid"></div>
+      </div>
+
       <div class="movie-info">
         <div class="movie-title-row">
           <div>
@@ -763,14 +893,15 @@
     // Add your TMDB v3 API key (Settings → API). Without it, title search + metadata won't work.
     const TMDB_API_KEY = "d7c9932ca6eaed0388919da906dcedc0";
     const TMDB_BASE = "https://api.themoviedb.org/3";
-    const TMDB_IMAGE = "https://image.tmdb.org/t/p/w780";
+    const TMDB_IMAGE = "https://image.tmdb.org/t/p/";
 
     // ---- State ----
     let current = {
       type: "movie", // "movie" | "tv"
       tmdbId: 1078605,
       season: 1,
-      episode: 1
+      episode: 1,
+      seasonsCount: null
     };
 
     function isTmdbConfigured() {
@@ -788,6 +919,11 @@
       return url.toString();
     }
 
+    function tmdbImageUrl(path, size) {
+      if (!path) return "";
+      return `${TMDB_IMAGE}${size}${path}`;
+    }
+
     async function tmdbFetch(path, params) {
       const res = await fetch(tmdbUrl(path, params));
       if (!res.ok) throw new Error(`TMDB ${res.status}`);
@@ -802,6 +938,7 @@
     function setActiveType(type) {
       current.type = type;
       document.getElementById("tvControls").style.display = type === "tv" ? "flex" : "none";
+      document.getElementById("episodeBrowser").style.display = type === "tv" ? "block" : "none";
 
       // button styling (quick visual state)
       const movieBtn = document.getElementById("typeMovieBtn");
@@ -1015,7 +1152,8 @@
         id: item.id,
         title: title || "-",
         year: formatYear(date),
-        rating: item.vote_average ? item.vote_average.toFixed(1) : "-"
+        rating: item.vote_average ? item.vote_average.toFixed(1) : "-",
+        poster_path: item.poster_path || ""
       };
     }
 
@@ -1029,8 +1167,10 @@
 
       searchResultsEl.innerHTML = results.slice(0, 8).map(r => {
         const tag = r.media_type === "tv" ? "TV" : "Movie";
+        const poster = r.poster_path ? tmdbImageUrl(r.poster_path, "w185") : "";
         return `
           <div class="result" data-id="${r.id}" data-type="${r.media_type}">
+            <img class="poster" src="${poster}" alt="" loading="lazy" onerror="this.style.display='none'" />
             <div class="left">
               <div class="title">${escapeHtml(r.title)}</div>
               <div class="meta">${escapeHtml(r.year)} • ⭐ ${escapeHtml(r.rating)}</div>
@@ -1061,6 +1201,75 @@
       refreshMetadata().catch(() => {});
       window.scrollTo({ top: document.getElementById("playerSection").offsetTop - 80, behavior: "smooth" });
     }
+
+    // ---- Episode browser ----
+    const seasonSelectEl = document.getElementById("seasonSelect");
+    const episodeGridEl = document.getElementById("episodeGrid");
+    const episodeHintEl = document.getElementById("episodeBrowserHint");
+
+    seasonSelectEl.addEventListener("change", () => {
+      const season = Number(seasonSelectEl.value) || 1;
+      current.season = season;
+      const sInput = document.getElementById("seasonInput");
+      if (sInput) sInput.value = String(season);
+      // keep episode at 1 when switching seasons
+      current.episode = 1;
+      const eInput = document.getElementById("episodeInput");
+      if (eInput) eInput.value = "1";
+      renderPlayer();
+      loadSeasonEpisodes().catch(() => {});
+    });
+
+    async function loadSeasonEpisodes() {
+      if (current.type !== "tv") return;
+      if (!isTmdbConfigured()) {
+        episodeHintEl.textContent = "Add your TMDB API key to browse episodes.";
+        episodeGridEl.innerHTML = "";
+        return;
+      }
+
+      episodeHintEl.textContent = `Season ${current.season} • Tap an episode to play`;
+      episodeGridEl.innerHTML = "";
+
+      const data = await tmdbFetch(`/tv/${current.tmdbId}/season/${current.season}`);
+      const episodes = Array.isArray(data.episodes) ? data.episodes : [];
+
+      if (!episodes.length) {
+        episodeGridEl.innerHTML = `<div style="color: var(--muted); padding: 8px 2px;">No episodes found for this season.</div>`;
+        return;
+      }
+
+      episodeGridEl.innerHTML = episodes.map(ep => {
+        const still = ep.still_path ? tmdbImageUrl(ep.still_path, "w300") : "";
+        const active = (Number(ep.episode_number) === Number(current.episode)) ? "active" : "";
+        const title = `E${ep.episode_number} • ${ep.name || "Episode"}`;
+        const subtitle = ep.air_date ? `${ep.air_date}` : "";
+        const overview = ep.overview || "No description available.";
+        return `
+          <div class="episode-card ${active}" data-episode="${ep.episode_number}">
+            <img class="episode-still" src="${still}" alt="" loading="lazy" onerror="this.style.display='none'" />
+            <div class="episode-meta">
+              <div class="episode-title">${escapeHtml(title)}</div>
+              <div class="episode-subtitle">${escapeHtml(subtitle)}</div>
+              <div class="episode-overview">${escapeHtml(overview)}</div>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    episodeGridEl.addEventListener("click", (e) => {
+      const card = e.target.closest(".episode-card");
+      if (!card) return;
+      const ep = Number(card.getAttribute("data-episode")) || 1;
+      current.episode = Math.max(1, ep);
+      const eInput = document.getElementById("episodeInput");
+      if (eInput) eInput.value = String(current.episode);
+      renderPlayer();
+      // highlight active
+      Array.from(episodeGridEl.querySelectorAll(".episode-card")).forEach(el => el.classList.remove("active"));
+      card.classList.add("active");
+    });
 
     searchResultsEl.addEventListener("mousedown", (e) => {
       const row = e.target.closest(".result");
@@ -1235,6 +1444,21 @@
         document.getElementById("heroScore").textContent = details.vote_average ? `${details.vote_average.toFixed(1)} / 10` : "- / 10";
         document.getElementById("heroNowPlaying").textContent = details.name || "-";
         document.getElementById("heroTmdbId").textContent = String(id);
+
+        // Build season dropdown once we know season count
+        current.seasonsCount = details.number_of_seasons || null;
+        if (current.seasonsCount) {
+          seasonSelectEl.innerHTML = Array.from({ length: current.seasonsCount }, (_, i) => {
+            const n = i + 1;
+            return `<option value="${n}">Season ${n}</option>`;
+          }).join("");
+          seasonSelectEl.value = String(current.season || 1);
+          loadSeasonEpisodes().catch(() => {});
+        } else {
+          seasonSelectEl.innerHTML = `<option value="1">Season 1</option>`;
+          seasonSelectEl.value = "1";
+          loadSeasonEpisodes().catch(() => {});
+        }
       }
     }
 
