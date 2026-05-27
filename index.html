@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CineStream</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
     * {
       margin: 0;
@@ -316,7 +317,7 @@
 
     .hero,
     .page,
-    .bottom-sections {
+    .content-max {
       max-width: 1300px;
       margin: 0 auto;
       padding-left: 24px;
@@ -567,26 +568,131 @@
       line-height: 1.45;
     }
 
-    .bottom-sections {
-      padding-bottom: 50px;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 24px;
+    .row-section {
+      padding-bottom: 42px;
     }
 
-    .features-grid,
-    .cast-grid {
-      padding: 18px;
-      display: grid;
+    .row-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 6px 10px;
+    }
+
+    .row-header h2 {
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+
+    .row-carousel {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .row-grid {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: row;
+      flex-wrap: nowrap;
       gap: 14px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scroll-behavior: smooth;
+      padding: 4px 0 2px;
+      scrollbar-width: none;
     }
 
-    .feature,
-    .cast-member {
-      background: rgba(255,255,255,0.03);
+    .row-grid::-webkit-scrollbar {
+      display: none;
+    }
+
+    .row-arrow-btn {
+      flex: 0 0 auto;
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      background: rgba(15,23,42,0.9);
       border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      cursor: pointer;
+      transition: 0.15s ease;
+    }
+
+    .row-arrow-btn:hover {
+      border-color: rgba(37,99,235,0.7);
+      transform: translateY(-1px);
+    }
+
+    .row-arrow-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .title-card {
+      flex: 0 0 auto;
+      width: 200px;
+      border-radius: 18px;
+      overflow: hidden;
+      background: rgba(15,23,42,0.95);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+
+    .title-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(37,99,235,0.8);
+      box-shadow: 0 18px 45px rgba(0,0,0,0.65);
+    }
+
+    .title-thumb {
+      width: 100%;
+      height: 120px;
+      object-fit: cover;
+      background: #020617;
+    }
+
+    .title-body {
+      padding: 10px 11px 12px;
+    }
+
+    .title-name {
+      font-size: 0.98rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .title-meta-line {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .title-pill-row {
+      margin-top: 4px;
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .title-pill {
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.12);
+      padding: 2px 7px;
+      font-size: 0.72rem;
+      color: rgba(241,245,249,0.9);
+      background: rgba(15,23,42,0.9);
     }
 
     footer {
@@ -619,10 +725,10 @@
     }
 
     @media (max-width: 560px) {
-      .hero,
-      .page,
-      .bottom-sections,
-      .nav-inner {
+    .hero,
+    .page,
+    .content-max,
+    .nav-inner {
         padding-left: 14px;
         padding-right: 14px;
       }
@@ -915,44 +1021,83 @@
     </aside>
   </main>
 
-  <section class="bottom-sections">
-    <div class="section-card">
-      <div class="section-header">
-        <h2>Platform Features</h2>
+  <section class="content-max row-section mt-8 md:mt-10 space-y-10">
+    <div>
+      <div class="row-header">
+        <h2 class="flex items-center gap-2">
+          <span>Top 10 Today</span>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-red-600/80 text-white font-semibold tracking-wide">HOT</span>
+        </h2>
       </div>
-      <div class="features-grid">
-        <div class="feature">
-          <h3>TMDB ID Based Routing</h3>
-          <p>The player now loads movies using the route format <code>/embed/movie/{tmdbId}</code>.</p>
-        </div>
-        <div class="feature">
-          <h3>Dynamic Movie Switching</h3>
-          <p>Each movie card updates the iframe source automatically using its TMDB ID.</p>
-        </div>
-        <div class="feature">
-          <h3>Responsive Player</h3>
-          <p>The layout adapts cleanly across desktop, tablet, and mobile screens.</p>
-        </div>
+      <div class="row-carousel">
+        <button class="row-arrow-btn" id="rowTop10Left" type="button" aria-label="Previous Top 10">◀</button>
+        <div class="row-grid" id="rowTop10"></div>
+        <button class="row-arrow-btn" id="rowTop10Right" type="button" aria-label="Next Top 10">▶</button>
       </div>
     </div>
 
-    <div class="section-card">
-      <div class="section-header">
-        <h2>Featured Cast</h2>
+    <div>
+      <div class="row-header">
+        <h2>Trending Today</h2>
       </div>
-      <div class="cast-grid">
-        <div class="cast-member">
-          <h3>Lead Actor</h3>
-          <p>Main performance for the current featured movie.</p>
+      <div class="row-carousel">
+        <button class="row-arrow-btn" id="rowTrendingLeft" type="button" aria-label="Previous trending">◀</button>
+        <div class="row-grid" id="rowTrending"></div>
+        <button class="row-arrow-btn" id="rowTrendingRight" type="button" aria-label="Next trending">▶</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="row-header">
+        <h2>Only on Netflix (Style)</h2>
+        <span class="text-xs text-slate-400">Popular Netflix originals & hits</span>
+      </div>
+      <div class="row-carousel">
+        <button class="row-arrow-btn" id="rowNetflixLeft" type="button" aria-label="Previous Netflix style">◀</button>
+        <div class="row-grid" id="rowNetflix"></div>
+        <button class="row-arrow-btn" id="rowNetflixRight" type="button" aria-label="Next Netflix style">▶</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="row-header">
+        <h2>Top Rated</h2>
+      </div>
+      <div class="row-carousel">
+        <button class="row-arrow-btn" id="rowTopRatedLeft" type="button" aria-label="Previous top rated">◀</button>
+        <div class="row-grid" id="rowTopRated"></div>
+        <button class="row-arrow-btn" id="rowTopRatedRight" type="button" aria-label="Next top rated">▶</button>
+      </div>
+    </div>
+
+    <div class="pb-10">
+      <div class="row-header">
+        <h2>Discover by Genre</h2>
+        <div class="flex items-center gap-2 text-sm text-slate-300">
+          <span class="hidden sm:inline">Movies • curated for you</span>
+          <select id="genreSelect" class="bg-slate-900/80 border border-slate-600 text-xs sm:text-sm rounded-lg px-2.5 py-1 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            <option value="35" selected>Comedy</option>
+            <option value="28">Action</option>
+            <option value="12">Adventure</option>
+            <option value="16">Animation</option>
+            <option value="80">Crime</option>
+            <option value="18">Drama</option>
+            <option value="14">Fantasy</option>
+            <option value="27">Horror</option>
+            <option value="9648">Mystery</option>
+            <option value="10749">Romance</option>
+            <option value="878">Sci-Fi</option>
+            <option value="53">Thriller</option>
+            <option value="10751">Family</option>
+            <option value="10402">Music</option>
+            <option value="99">Documentary</option>
+          </select>
         </div>
-        <div class="cast-member">
-          <h3>Supporting Cast</h3>
-          <p>Add actor names, character roles, or thumbnails here.</p>
-        </div>
-        <div class="cast-member">
-          <h3>Production Notes</h3>
-          <p>Use this space for awards, critic snippets, or release notes.</p>
-        </div>
+      </div>
+      <div class="row-carousel">
+        <button class="row-arrow-btn" id="rowGenreLeft" type="button" aria-label="Previous genre picks">◀</button>
+        <div class="row-grid" id="rowGenre"></div>
+        <button class="row-arrow-btn" id="rowGenreRight" type="button" aria-label="Next genre picks">▶</button>
       </div>
     </div>
   </section>
@@ -1494,6 +1639,179 @@
 
     window.addEventListener("resize", updateEpisodeArrows);
 
+    // ---- Home rows (Top 10, Trending, Netflix-style, Top rated, Genre row) ----
+    const rowConfigs = {
+      top10:   { left: "rowTop10Left",   right: "rowTop10Right",   grid: "rowTop10" },
+      trending:{ left: "rowTrendingLeft",right: "rowTrendingRight",grid: "rowTrending" },
+      netflix: { left: "rowNetflixLeft", right: "rowNetflixRight", grid: "rowNetflix" },
+      topRated:{ left: "rowTopRatedLeft",right:"rowTopRatedRight", grid: "rowTopRated" },
+      genre:   { left: "rowGenreLeft",   right: "rowGenreRight",   grid: "rowGenre" }
+    };
+
+    function createRowScroller(key) {
+      const cfg = rowConfigs[key];
+      if (!cfg) return;
+      const grid = document.getElementById(cfg.grid);
+      const left = document.getElementById(cfg.left);
+      const right = document.getElementById(cfg.right);
+      if (!grid || !left || !right) return;
+
+      function update() {
+        const maxScroll = grid.scrollWidth - grid.clientWidth;
+        const atStart = grid.scrollLeft <= 1;
+        const atEnd = grid.scrollLeft >= maxScroll - 1;
+        left.disabled = atStart;
+        right.disabled = atEnd;
+      }
+
+      function scroll(delta) {
+        grid.scrollBy({ left: delta, behavior: "smooth" });
+        setTimeout(update, 320);
+      }
+
+      left.addEventListener("click", () => scroll(-(grid.clientWidth * 0.9)));
+      right.addEventListener("click", () => scroll(grid.clientWidth * 0.9));
+      grid.addEventListener("scroll", update);
+      window.addEventListener("resize", update);
+
+      // disable wheel to encourage arrows
+      grid.addEventListener("wheel", (e) => {
+        e.preventDefault();
+      }, { passive: false });
+
+      update();
+    }
+
+    ["top10","trending","netflix","topRated","genre"].forEach(createRowScroller);
+
+    function buildTitleCard(item) {
+      const isTv = item.media_type === "tv";
+      const year = formatYear(isTv ? item.first_air_date : item.release_date);
+      const rating = item.vote_average ? item.vote_average.toFixed(1) : "-";
+      const genre = (item.genres && item.genres[0] && item.genres[0].name) || (isTv ? "TV" : "Movie");
+      const img = item.backdrop_path || item.poster_path;
+      const src = img ? tmdbImageUrl(img, "w500") : "";
+
+      const div = document.createElement("div");
+      div.className = "title-card";
+      div.setAttribute("data-id", String(item.id));
+      div.setAttribute("data-type", isTv ? "tv" : "movie");
+      div.innerHTML = `
+        <img class="title-thumb" src="${src}" alt="" loading="lazy" onerror="this.style.display='none'" />
+        <div class="title-body">
+          <div class="title-name">${escapeHtml(isTv ? (item.name || "") : (item.title || ""))}</div>
+          <div class="title-meta-line">${escapeHtml(year)} • ⭐ ${escapeHtml(rating)}</div>
+          <div class="title-meta-line">${escapeHtml(genre)}</div>
+          <div class="title-pill-row">
+            <span class="title-pill">${isTv ? "TV" : "Movie"}</span>
+          </div>
+        </div>
+      `;
+
+      div.addEventListener("click", () => {
+        const payload = {
+          media_type: isTv ? "tv" : "movie",
+          id: item.id,
+          title: isTv ? item.name : item.title
+        };
+        loadFromSearchResult(payload);
+      });
+
+      return div;
+    }
+
+    async function populateRowTop10() {
+      try {
+        const data = await tmdbFetch("/trending/all/day");
+        const items = (data.results || []).slice(0, 10);
+        const container = document.getElementById("rowTop10");
+        if (!container) return;
+        container.innerHTML = "";
+        items.forEach(item => container.appendChild(buildTitleCard(item)));
+      } catch {}
+    }
+
+    async function populateRowTrending() {
+      try {
+        const data = await tmdbFetch("/trending/all/week");
+        const items = (data.results || []).slice(0, 12);
+        const container = document.getElementById("rowTrending");
+        if (!container) return;
+        container.innerHTML = "";
+        items.forEach(item => container.appendChild(buildTitleCard(item)));
+      } catch {}
+    }
+
+    async function populateRowNetflix() {
+      try {
+        const data = await tmdbFetch("/discover/tv", {
+          with_networks: 213,
+          "vote_count.gte": 200,
+          sort_by: "popularity.desc",
+          page: 1
+        });
+        const items = (data.results || []).slice(0, 12).map(it => ({ ...it, media_type: "tv" }));
+        const container = document.getElementById("rowNetflix");
+        if (!container) return;
+        container.innerHTML = "";
+        items.forEach(item => container.appendChild(buildTitleCard(item)));
+      } catch {}
+    }
+
+    async function populateRowTopRated() {
+      try {
+        const [movies, shows] = await Promise.all([
+          tmdbFetch("/movie/top_rated", { page: 1 }),
+          tmdbFetch("/tv/top_rated", { page: 1 })
+        ]);
+        const combined = [
+          ...(movies.results || []).slice(0, 10).map(it => ({ ...it, media_type: "movie" })),
+          ...(shows.results || []).slice(0, 10).map(it => ({ ...it, media_type: "tv" }))
+        ].slice(0, 14);
+        const container = document.getElementById("rowTopRated");
+        if (!container) return;
+        container.innerHTML = "";
+        combined.forEach(item => container.appendChild(buildTitleCard(item)));
+      } catch {}
+    }
+
+    async function populateRowGenre() {
+      const select = document.getElementById("genreSelect");
+      if (!select) return;
+      const genreId = select.value || "35";
+      try {
+        const data = await tmdbFetch("/discover/movie", {
+          with_genres: genreId,
+          sort_by: "popularity.desc",
+          "vote_count.gte": 50,
+          page: 1
+        });
+        const items = (data.results || []).slice(0, 18).map(it => ({ ...it, media_type: "movie" }));
+        const container = document.getElementById("rowGenre");
+        if (!container) return;
+        container.innerHTML = "";
+        items.forEach(item => container.appendChild(buildTitleCard(item)));
+      } catch {}
+    }
+
+    const genreSelectEl = document.getElementById("genreSelect");
+    if (genreSelectEl) {
+      genreSelectEl.addEventListener("change", () => {
+        populateRowGenre();
+      });
+    }
+
+    async function populateAllRows() {
+      if (!isTmdbConfigured()) return;
+      await Promise.all([
+        populateRowTop10(),
+        populateRowTrending(),
+        populateRowNetflix(),
+        populateRowTopRated(),
+        populateRowGenre()
+      ]);
+    }
+
     searchResultsEl.addEventListener("mousedown", (e) => {
       const row = e.target.closest(".result");
       if (!row) return;
@@ -1701,6 +2019,7 @@
       setActiveType("movie");
       renderPlayer();
       refreshMetadata().catch(() => {});
+      populateAllRows().catch(() => {});
     });
   </script>
 </body>
