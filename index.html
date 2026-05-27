@@ -1050,6 +1050,12 @@
       return res.json();
     }
 
+    function setText(id, value) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = value == null ? "" : String(value);
+    }
+
     async function loadSubManifest() {
       try {
         const res = await fetch("subtitles/the-oc/manifest.json");
@@ -1175,16 +1181,17 @@
         current.type === "tv"
           ? `TMDB TV ${current.tmdbId} (S${current.season}E${current.episode})`
           : `TMDB Movie ${current.tmdbId}`;
-      document.getElementById("movieTitle").textContent = fallbackTitle;
-      document.getElementById("heroTitle").textContent = fallbackTitle;
+      setText("movieTitle", fallbackTitle);
+      setText("heroTitle", fallbackTitle);
 
-      document.getElementById("heroText").textContent =
+      setText("heroText",
         current.type === "tv"
           ? `Playback loaded from /embed/tv/${current.tmdbId}/${current.season}/${current.episode}`
-          : `Playback loaded from /embed/movie/${current.tmdbId}`;
+          : `Playback loaded from /embed/movie/${current.tmdbId}`
+      );
 
-      document.getElementById("heroTmdbId").textContent = String(current.tmdbId);
-      document.getElementById("movieTmdbId").textContent = String(current.tmdbId);
+      setText("heroTmdbId", String(current.tmdbId));
+      setText("movieTmdbId", String(current.tmdbId));
     }
 
     function loadMovieByTmdbId(tmdbId) {
@@ -1216,10 +1223,7 @@
       document.getElementById("heroNowPlaying").textContent = title;
       document.getElementById("heroTmdbId").textContent = tmdbId;
 
-      window.scrollTo({
-        top: document.getElementById("playerSection").offsetTop - 80,
-        behavior: "smooth"
-      });
+      openPlayerModal();
 
       refreshMetadata().catch(() => {});
     }
@@ -1253,10 +1257,7 @@
       document.getElementById("heroNowPlaying").textContent = movie.title;
       document.getElementById("heroTmdbId").textContent = movie.tmdbId;
 
-      window.scrollTo({
-        top: document.getElementById("playerSection").offsetTop - 80,
-        behavior: "smooth"
-      });
+      openPlayerModal();
 
       refreshMetadata().catch(() => {});
     }
@@ -1949,10 +1950,7 @@
       current.tmdbId = Number(first.id);
       renderPlayer();
       await refreshMetadata();
-      window.scrollTo({
-        top: document.getElementById("playerSection").offsetTop - 80,
-        behavior: "smooth"
-      });
+      openPlayerModal();
     }
 
     function formatYear(dateStr) {
@@ -1986,27 +1984,25 @@
         const director = (credits.crew || []).find(c => c.job === "Director");
         const studio = (details.production_companies || [])[0];
 
-        document.getElementById("movieTitle").textContent = details.title || `TMDB Movie ${id}`;
-        document.getElementById("movieGenre").textContent = pickGenres(details.genres);
-        document.getElementById("movieYear").textContent = formatYear(details.release_date);
-        document.getElementById("movieRuntime").textContent = formatRuntimeMinutes(details.runtime);
-        document.getElementById("movieLanguage").textContent = (details.spoken_languages && details.spoken_languages[0] && details.spoken_languages[0].english_name) ? details.spoken_languages[0].english_name : "Unknown";
-        document.getElementById("movieRating").textContent = details.vote_average ? details.vote_average.toFixed(1) : "-";
-        document.getElementById("movieDescription").textContent = details.overview || "No overview available.";
-        document.getElementById("movieDirector").textContent = director ? director.name : "-";
-        document.getElementById("movieStudio").textContent = studio ? studio.name : "-";
-        document.getElementById("movieRelease").textContent = details.release_date || "-";
-        document.getElementById("movieTmdbId").textContent = String(id);
+        setText("movieTitle", details.title || `TMDB Movie ${id}`);
+        setText("movieGenre", pickGenres(details.genres));
+        setText("movieYear", formatYear(details.release_date));
+        setText("movieRuntime", formatRuntimeMinutes(details.runtime));
+        setText("movieLanguage", (details.spoken_languages && details.spoken_languages[0] && details.spoken_languages[0].english_name) ? details.spoken_languages[0].english_name : "Unknown");
+        setText("movieRating", details.vote_average ? details.vote_average.toFixed(1) : "-");
+        setText("movieDescription", details.overview || "No overview available.");
+        setText("movieDirector", director ? director.name : "-");
+        setText("movieStudio", studio ? studio.name : "-");
+        setText("movieRelease", details.release_date || "-");
+        setText("movieTmdbId", String(id));
 
-        document.getElementById("heroTitle").textContent = details.title || "Featured Movie Night";
-        document.getElementById("heroText").textContent = details.overview || `Playback loaded from /embed/movie/${id}`;
-        document.getElementById("heroGenre").textContent = pickGenres(details.genres);
-        document.getElementById("heroYear").textContent = formatYear(details.release_date);
-        document.getElementById("heroRuntime").textContent = details.runtime ? `${Math.floor(details.runtime / 60)}h ${details.runtime % 60}m` : "-";
-        document.getElementById("heroQuality").textContent = "HD";
-        document.getElementById("heroScore").textContent = details.vote_average ? `${details.vote_average.toFixed(1)} / 10` : "- / 10";
-        document.getElementById("heroNowPlaying").textContent = details.title || "-";
-        document.getElementById("heroTmdbId").textContent = String(id);
+        // Home hero fields (new layout only has these)
+        setText("heroTitle", details.title || "Featured");
+        setText("heroText", details.overview || "");
+        setText("heroGenre", pickGenres(details.genres));
+        setText("heroYear", formatYear(details.release_date));
+        setText("heroScore", details.vote_average ? details.vote_average.toFixed(1) : "-");
+        setText("heroTmdbId", String(id));
       } else {
         const details = await tmdbFetch(`/tv/${id}`);
 
@@ -2014,27 +2010,25 @@
         const studio = (details.networks || [])[0];
         const creator = (details.created_by || [])[0];
 
-        document.getElementById("movieTitle").textContent = details.name || `TMDB TV ${id}`;
-        document.getElementById("movieGenre").textContent = pickGenres(details.genres);
-        document.getElementById("movieYear").textContent = formatYear(details.first_air_date);
-        document.getElementById("movieRuntime").textContent = runtime ? `${runtime} min/ep` : "-";
-        document.getElementById("movieLanguage").textContent = details.original_language ? details.original_language.toUpperCase() : "Unknown";
-        document.getElementById("movieRating").textContent = details.vote_average ? details.vote_average.toFixed(1) : "-";
-        document.getElementById("movieDescription").textContent = details.overview || "No overview available.";
-        document.getElementById("movieDirector").textContent = creator ? creator.name : "-";
-        document.getElementById("movieStudio").textContent = studio ? studio.name : "-";
-        document.getElementById("movieRelease").textContent = details.first_air_date || "-";
-        document.getElementById("movieTmdbId").textContent = String(id);
+        setText("movieTitle", details.name || `TMDB TV ${id}`);
+        setText("movieGenre", pickGenres(details.genres));
+        setText("movieYear", formatYear(details.first_air_date));
+        setText("movieRuntime", runtime ? `${runtime} min/ep` : "-");
+        setText("movieLanguage", details.original_language ? details.original_language.toUpperCase() : "Unknown");
+        setText("movieRating", details.vote_average ? details.vote_average.toFixed(1) : "-");
+        setText("movieDescription", details.overview || "No overview available.");
+        setText("movieDirector", creator ? creator.name : "-");
+        setText("movieStudio", studio ? studio.name : "-");
+        setText("movieRelease", details.first_air_date || "-");
+        setText("movieTmdbId", String(id));
 
-        document.getElementById("heroTitle").textContent = details.name || "Featured Show Night";
-        document.getElementById("heroText").textContent = details.overview || `Playback loaded from /embed/tv/${id}/${current.season}/${current.episode}`;
-        document.getElementById("heroGenre").textContent = pickGenres(details.genres);
-        document.getElementById("heroYear").textContent = formatYear(details.first_air_date);
-        document.getElementById("heroRuntime").textContent = runtime ? `${runtime}m/ep` : "-";
-        document.getElementById("heroQuality").textContent = "HD";
-        document.getElementById("heroScore").textContent = details.vote_average ? `${details.vote_average.toFixed(1)} / 10` : "- / 10";
-        document.getElementById("heroNowPlaying").textContent = details.name || "-";
-        document.getElementById("heroTmdbId").textContent = String(id);
+        // Home hero fields (new layout only has these)
+        setText("heroTitle", details.name || "Featured");
+        setText("heroText", details.overview || "");
+        setText("heroGenre", pickGenres(details.genres));
+        setText("heroYear", formatYear(details.first_air_date));
+        setText("heroScore", details.vote_average ? details.vote_average.toFixed(1) : "-");
+        setText("heroTmdbId", String(id));
 
         // Build season dropdown once we know season count
         current.seasonsCount = details.number_of_seasons || null;
