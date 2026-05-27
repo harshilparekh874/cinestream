@@ -180,17 +180,55 @@
       outline: none;
     }
 
-    .episode-grid {
-      padding: 14px;
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+    .episode-carousel {
+      padding: 14px 14px 18px;
+      display: flex;
+      align-items: center;
       gap: 12px;
+      border-top: 0;
     }
 
-    @media (max-width: 800px) {
-      .episode-grid {
-        grid-template-columns: 1fr;
-      }
+    .episode-arrow {
+      flex: 0 0 auto;
+      width: 44px;
+      height: 44px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: 0.15s ease;
+      user-select: none;
+    }
+
+    .episode-arrow:hover {
+      border-color: rgba(37,99,235,0.55);
+      transform: translateY(-1px);
+    }
+
+    .episode-arrow:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .episode-grid {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      gap: 12px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scroll-behavior: smooth;
+      scrollbar-width: none; /* Firefox */
+    }
+
+    .episode-grid::-webkit-scrollbar {
+      display: none; /* Chrome/Safari */
     }
 
     .episode-card {
@@ -203,6 +241,9 @@
       background: rgba(255,255,255,0.03);
       cursor: pointer;
       transition: 0.15s ease;
+      flex: 0 0 auto;
+      width: 520px;
+      max-width: 85vw;
     }
 
     .episode-card:hover {
@@ -705,7 +746,11 @@
             <select id="seasonSelect" aria-label="Season"></select>
           </div>
         </div>
-        <div class="episode-grid" id="episodeGrid"></div>
+        <div class="episode-carousel">
+          <button class="episode-arrow" id="episodeLeftArrow" type="button" aria-label="Previous episodes">◀</button>
+          <div class="episode-grid" id="episodeGrid"></div>
+          <button class="episode-arrow" id="episodeRightArrow" type="button" aria-label="Next episodes">▶</button>
+        </div>
       </div>
 
       <div class="movie-info">
@@ -1379,6 +1424,15 @@
           </div>
         `;
       }).join("");
+
+      // Keep active episode visible in the horizontal bar
+      const activeEl = episodeGridEl.querySelector(".episode-card.active");
+      if (activeEl) {
+        setTimeout(() => {
+          activeEl.scrollIntoView({ block: "nearest", inline: "start", behavior: "smooth" });
+        }, 0);
+      }
+      updateEpisodeArrows();
     }
 
     episodeGridEl.addEventListener("click", (e) => {
@@ -1403,6 +1457,42 @@
       Array.from(episodeGridEl.querySelectorAll(".episode-card")).forEach(el => el.classList.remove("active"));
       card.classList.add("active");
     });
+
+    // ---- Horizontal carousel navigation ----
+    const episodeLeftBtn = document.getElementById("episodeLeftArrow");
+    const episodeRightBtn = document.getElementById("episodeRightArrow");
+
+    function updateEpisodeArrows() {
+      if (!episodeLeftBtn || !episodeRightBtn) return;
+      const maxScroll = episodeGridEl.scrollWidth - episodeGridEl.clientWidth;
+      const atStart = episodeGridEl.scrollLeft <= 1;
+      const atEnd = episodeGridEl.scrollLeft >= maxScroll - 1;
+      episodeLeftBtn.disabled = atStart;
+      episodeRightBtn.disabled = atEnd;
+    }
+
+    function scrollEpisodeBy(delta) {
+      episodeGridEl.scrollBy({ left: delta, behavior: "smooth" });
+      updateEpisodeArrows();
+    }
+
+    if (episodeLeftBtn && episodeRightBtn) {
+      episodeLeftBtn.addEventListener("click", () => {
+        scrollEpisodeBy(-(episodeGridEl.clientWidth * 0.85));
+      });
+      episodeRightBtn.addEventListener("click", () => {
+        scrollEpisodeBy(episodeGridEl.clientWidth * 0.85);
+      });
+    }
+
+    episodeGridEl.addEventListener("scroll", updateEpisodeArrows);
+
+    // Disable wheel scrolling so users use arrows instead.
+    episodeGridEl.addEventListener("wheel", (e) => {
+      e.preventDefault();
+    }, { passive: false });
+
+    window.addEventListener("resize", updateEpisodeArrows);
 
     searchResultsEl.addEventListener("mousedown", (e) => {
       const row = e.target.closest(".result");
