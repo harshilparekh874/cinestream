@@ -609,7 +609,6 @@
     <div class="nav-inner">
       <div class="logo">Cine<span>Stream</span></div>
       <div id="navMessage" style="flex: 1; text-align: center; color: var(--muted); font-weight: 600; padding: 0 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-        Made for Dhruvi and Harshil to watch stuff :)
       </div>
       <div class="search-box">
         <input type="text" id="searchInput" placeholder="Search movies & TV by name (or paste TMDB ID)..." autocomplete="off" />
@@ -674,6 +673,11 @@
               <span style="color: var(--muted); font-size: 0.85rem;">E</span>
               <input id="episodeInput" type="number" min="1" value="1" style="width:64px; background:transparent; border:none; outline:none; color:white;" />
             </div>
+          </div>
+
+          <div id="providerToggle" style="display:flex; gap:8px; background: rgba(255,255,255,0.04); border:1px solid var(--border); padding:6px; border-radius:14px;">
+            <button class="btn btn-secondary" id="providerVidkingBtn" style="padding:8px 12px;">Vidking</button>
+            <button class="btn btn-secondary" id="providerVidsrcBtn" style="padding:8px 12px;">Vidsrc</button>
           </div>
 
           <button class="btn btn-secondary" id="subtitleToggleBtn" style="display:none; padding:8px 12px;" type="button">Subtitles: On</button>
@@ -930,6 +934,10 @@
 
     let subtitlesEnabled = true;
     let localSubManifest = null;
+    let provider = "vidking"; // "vidking" | "vidsrc"
+
+    const VIDKING_BASE = "https://www.vidking.net/embed";
+    const VIDSRC_BASE = "https://vidsrc-embed.ru/embed";
 
     function isTmdbConfigured() {
       return typeof TMDB_API_KEY === "string" && TMDB_API_KEY.trim().length > 0;
@@ -977,26 +985,73 @@
       return new URL(rel, window.location.href).href;
     }
 
+    function setProvider(next) {
+      provider = next;
+      const vk = document.getElementById("providerVidkingBtn");
+      const vs = document.getElementById("providerVidsrcBtn");
+      if (provider === "vidking") {
+        vk.classList.add("btn-primary");
+        vk.classList.remove("btn-secondary");
+        vs.classList.add("btn-secondary");
+        vs.classList.remove("btn-primary");
+      } else {
+        vs.classList.add("btn-primary");
+        vs.classList.remove("btn-secondary");
+        vk.classList.add("btn-secondary");
+        vk.classList.remove("btn-primary");
+      }
+      renderPlayer();
+      updateSubtitleToggleUI();
+    }
+
     function updateSubtitleToggleUI() {
       const btn = document.getElementById("subtitleToggleBtn");
       if (!btn) return;
       const available = hasLocalSubsForCurrent();
       btn.style.display = available ? "inline-block" : "none";
       if (!available) return;
+
+      // External subtitle injection is only supported on Vidsrc in our setup.
+      const canApply = provider === "vidsrc";
+      btn.disabled = !canApply;
+      btn.style.opacity = canApply ? "1" : "0.55";
+      btn.style.cursor = canApply ? "pointer" : "not-allowed";
+      btn.title = canApply ? "" : "Switch provider to Vidsrc to use these subtitles.";
+
+      if (!canApply) {
+        btn.textContent = "Subtitles (switch to Vidsrc)";
+        btn.classList.add("btn-secondary");
+        btn.classList.remove("btn-primary");
+        return;
+      }
+
       btn.textContent = subtitlesEnabled ? "Subtitles: On" : "Subtitles: Off";
       btn.classList.toggle("btn-primary", subtitlesEnabled);
       btn.classList.toggle("btn-secondary", !subtitlesEnabled);
     }
 
     function getEmbedUrl({ type, tmdbId, season, episode }) {
-      const subUrl = getLocalSubtitleUrl();
-      if (subUrl) {
-        const params = `sub_file=${encodeURIComponent(subUrl)}&sub_label=${encodeURIComponent("English")}`;
-        if (type === "tv") return `https://vidlink.pro/tv/${tmdbId}/${season}/${episode}?${params}`;
-        return `https://vidlink.pro/movie/${tmdbId}?${params}`;
+      if (provider === "vidsrc") {
+        const subUrl = getLocalSubtitleUrl();
+        const url = new URL(type === "tv" ? `${VIDSRC_BASE}/tv` : `${VIDSRC_BASE}/movie`);
+        url.searchParams.set("tmdb", String(tmdbId));
+        if (type === "tv") {
+          url.searchParams.set("season", String(season));
+          url.searchParams.set("episode", String(episode));
+          url.searchParams.set("autonext", "1");
+        } else {
+          url.searchParams.set("autoplay", "1");
+        }
+
+        if (subUrl) {
+          url.searchParams.set("sub_url", subUrl);
+          url.searchParams.set("ds_lang", "en");
+        }
+        return url.toString();
       }
-      if (type === "tv") return `https://www.vidking.net/embed/tv/${tmdbId}/${season}/${episode}`;
-      return `https://www.vidking.net/embed/movie/${tmdbId}`;
+
+      if (type === "tv") return `${VIDKING_BASE}/tv/${tmdbId}/${season}/${episode}`;
+      return `${VIDKING_BASE}/movie/${tmdbId}`;
     }
 
     function setActiveType(type) {
@@ -1541,6 +1596,8 @@
     }
 
     document.getElementById("subtitleToggleBtn").addEventListener("click", () => {
+      // If we're on Vidking, subtitles can't be injected (button will be disabled anyway)
+      if (provider !== "vidsrc") return;
       subtitlesEnabled = !subtitlesEnabled;
       updateSubtitleToggleUI();
       renderPlayer();
@@ -1548,6 +1605,9 @@
 
     // initial UI state
     loadSubManifest().finally(() => {
+      document.getElementById("providerVidkingBtn").addEventListener("click", () => setProvider("vidking"));
+      document.getElementById("providerVidsrcBtn").addEventListener("click", () => setProvider("vidsrc"));
+      setProvider("vidking");
       setActiveType("movie");
       renderPlayer();
       refreshMetadata().catch(() => {});
