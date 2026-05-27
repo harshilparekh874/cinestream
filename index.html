@@ -764,262 +764,157 @@
     </div>
   </nav>
 
-  <section class="hero">
-    <div class="hero-banner">
-      <div class="hero-copy">
-        <h1 id="heroTitle">Featured Movie Night</h1>
-        <p id="heroText">
-          Stream your featured title in a polished movie interface with related titles,
-          watchlist actions, metadata, cast, and a clean modern layout.
+  <section id="homeHero" class="relative w-full min-h-[78vh] md:min-h-[84vh] overflow-hidden">
+    <div id="heroBackdrop" class="absolute inset-0 bg-slate-950"></div>
+    <div class="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-black/15"></div>
+    <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
+
+    <div class="content-max relative pt-14 md:pt-20 pb-10 md:pb-14">
+      <div class="max-w-2xl">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="text-xs tracking-widest uppercase text-slate-300/80">Now trending</span>
+          <span class="h-1 w-1 rounded-full bg-slate-400/70"></span>
+          <span class="text-xs text-slate-300/80" id="heroTypePill">Movie</span>
+        </div>
+
+        <h1 id="heroTitle" class="text-4xl md:text-6xl font-extrabold tracking-tight drop-shadow-lg">Featured</h1>
+        <div class="mt-4 flex flex-wrap gap-2 items-center text-sm text-slate-200/90">
+          <span class="inline-flex items-center gap-1.5"><span class="text-red-500">★</span><span id="heroScore">-</span></span>
+          <span class="text-slate-400">•</span>
+          <span id="heroYear">-</span>
+          <span class="text-slate-400">•</span>
+          <span id="heroGenre">-</span>
+        </div>
+
+        <p id="heroText" class="mt-4 text-slate-200/85 leading-relaxed max-w-xl line-clamp-4">
+          Loading the best new & highly-rated picks…
         </p>
 
-        <div class="hero-meta">
-          <span class="pill" id="heroGenre">Sci-Fi</span>
-          <span class="pill" id="heroYear">2026</span>
-          <span class="pill" id="heroRuntime">2h 08m</span>
-          <span class="pill" id="heroQuality">4K</span>
+        <div class="mt-7 flex flex-wrap gap-3">
+          <button id="heroPlayBtn" class="inline-flex items-center gap-2 rounded-xl bg-white text-slate-900 px-5 py-3 font-semibold hover:bg-slate-100 transition">
+            ▶ Play
+          </button>
+          <button id="heroMoreBtn" class="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 text-white px-5 py-3 font-semibold hover:bg-white/15 transition">
+            ⓘ See more
+          </button>
         </div>
 
-        <div class="hero-actions">
-          <button class="btn btn-primary" onclick="scrollToPlayer()">Watch Now</button>
-          <button class="btn btn-secondary" onclick="addToWatchlist()">+ Watchlist</button>
-        </div>
-      </div>
-
-      <div class="hero-side">
-        <div class="stat-card">
-          <h3>Viewer Score</h3>
-          <p id="heroScore">8.8 / 10</p>
-        </div>
-        <div class="stat-card">
-          <h3>Now Playing</h3>
-          <p id="heroNowPlaying">Featured Title</p>
-        </div>
-        <div class="stat-card">
-          <h3>TMDB ID</h3>
-          <p id="heroTmdbId">1078605</p>
+        <div class="mt-10 flex items-center gap-3">
+          <div class="text-xs text-slate-400">Auto-preview</div>
+          <div class="flex items-center gap-2" id="heroDots"></div>
         </div>
       </div>
     </div>
   </section>
 
-  <main class="page">
-    <section class="main-panel" id="playerSection">
-      <div class="player-header">
-        <h2 id="playerTitle">Player</h2>
-        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-          <div id="typeToggle" style="display:flex; gap:8px; background: rgba(255,255,255,0.04); border:1px solid var(--border); padding:6px; border-radius:14px;">
-            <button class="btn btn-secondary" id="typeMovieBtn" style="padding:8px 12px;">Movie</button>
-            <button class="btn btn-secondary" id="typeTvBtn" style="padding:8px 12px;">TV</button>
-          </div>
-
-          <div id="tvControls" style="display:none; gap:8px; align-items:center;">
-            <div style="display:flex; gap:8px; align-items:center; background: rgba(255,255,255,0.04); border:1px solid var(--border); padding:6px 10px; border-radius:14px;">
-              <span style="color: var(--muted); font-size: 0.85rem;">S</span>
-              <input id="seasonInput" type="number" min="1" value="1" style="width:64px; background:transparent; border:none; outline:none; color:white;" />
-              <span style="color: var(--muted); font-size: 0.85rem;">E</span>
-              <input id="episodeInput" type="number" min="1" value="1" style="width:64px; background:transparent; border:none; outline:none; color:white;" />
+  <!-- Player modal (opens on selection) -->
+  <div id="playerModal" class="fixed inset-0 z-[100] hidden">
+    <div id="playerModalBackdrop" class="absolute inset-0 bg-black/80"></div>
+    <div class="absolute inset-0 flex items-start justify-center p-4 md:p-8 overflow-y-auto">
+      <div class="w-full max-w-6xl">
+        <div class="rounded-3xl overflow-hidden border border-white/10 bg-slate-950/95 shadow-2xl">
+          <div class="player-header">
+            <div class="flex items-center justify-between w-full gap-4">
+              <div class="flex items-center gap-3">
+                <h2 id="playerTitle" class="text-lg font-bold">Player</h2>
+                <span class="text-xs text-slate-400" id="playerSubTitle"></span>
+              </div>
+              <button id="closePlayerBtn" class="btn btn-secondary" type="button">Close</button>
             </div>
           </div>
 
-          <div id="providerToggle" style="display:flex; gap:8px; background: rgba(255,255,255,0.04); border:1px solid var(--border); padding:6px; border-radius:14px;">
-            <button class="btn btn-secondary" id="providerVidkingBtn" style="padding:8px 12px;">Vidking</button>
-            <button class="btn btn-secondary" id="providerVidsrcBtn" style="padding:8px 12px;">Vidsrc</button>
+          <div class="player-wrap" id="playerWrap">
+            <iframe
+              src="about:blank"
+              width="100%"
+              height="600"
+              frameborder="0"
+              allowfullscreen>
+            </iframe>
           </div>
 
-          <button class="btn btn-secondary" id="subtitleToggleBtn" style="display:none; padding:8px 12px;" type="button">Subtitles: On</button>
-          <button class="btn btn-secondary" onclick="toggleFullscreen()">Fullscreen</button>
-        </div>
-      </div>
-
-      <div class="player-wrap" id="playerWrap">
-        <iframe 
-          src="https://www.vidking.net/embed/movie/1078605" 
-          width="100%" 
-          height="600" 
-          frameborder="0" 
-          allowfullscreen>
-        </iframe>
-      </div>
-
-      <div class="episode-browser" id="episodeBrowser">
-        <div class="episode-browser-header">
-          <div>
-            <strong>Episodes</strong>
-            <div style="color: var(--muted); font-size: 0.86rem;" id="episodeBrowserHint">Select a season to browse episodes.</div>
+          <div class="px-4 md:px-6 py-4 border-t border-white/10 flex flex-wrap gap-2 items-center">
+            <div id="typeToggle" style="display:flex; gap:8px; background: rgba(255,255,255,0.04); border:1px solid var(--border); padding:6px; border-radius:14px;">
+              <button class="btn btn-secondary" id="typeMovieBtn" style="padding:8px 12px;">Movie</button>
+              <button class="btn btn-secondary" id="typeTvBtn" style="padding:8px 12px;">TV</button>
+            </div>
+            <div id="tvControls" style="display:none; gap:8px; align-items:center;">
+              <div style="display:flex; gap:8px; align-items:center; background: rgba(255,255,255,0.04); border:1px solid var(--border); padding:6px 10px; border-radius:14px;">
+                <span style="color: var(--muted); font-size: 0.85rem;">S</span>
+                <input id="seasonInput" type="number" min="1" value="1" style="width:64px; background:transparent; border:none; outline:none; color:white;" />
+                <span style="color: var(--muted); font-size: 0.85rem;">E</span>
+                <input id="episodeInput" type="number" min="1" value="1" style="width:64px; background:transparent; border:none; outline:none; color:white;" />
+              </div>
+            </div>
+            <div id="providerToggle" style="display:flex; gap:8px; background: rgba(255,255,255,0.04); border:1px solid var(--border); padding:6px; border-radius:14px;">
+              <button class="btn btn-secondary" id="providerVidkingBtn" style="padding:8px 12px;">Vidking</button>
+              <button class="btn btn-secondary" id="providerVidsrcBtn" style="padding:8px 12px;">Vidsrc</button>
+            </div>
+            <button class="btn btn-secondary" id="subtitleToggleBtn" style="display:none; padding:8px 12px;" type="button">Subtitles: On</button>
+            <button class="btn btn-secondary" onclick="toggleFullscreen()">Fullscreen</button>
           </div>
-          <div class="controls">
-            <select id="seasonSelect" aria-label="Season"></select>
-          </div>
-        </div>
-        <div class="episode-carousel">
-          <button class="episode-arrow" id="episodeLeftArrow" type="button" aria-label="Previous episodes">◀</button>
-          <div class="episode-grid" id="episodeGrid"></div>
-          <button class="episode-arrow" id="episodeRightArrow" type="button" aria-label="Next episodes">▶</button>
-        </div>
-      </div>
 
-      <div class="movie-info">
-        <div class="movie-title-row">
-          <div>
-            <h1 id="movieTitle">Your Featured Movie</h1>
-            <div class="hero-meta">
-              <span class="pill" id="movieGenre">Action</span>
-              <span class="pill" id="movieYear">2026</span>
-              <span class="pill" id="movieRuntime">121 min</span>
-              <span class="pill" id="movieLanguage">English</span>
+          <div class="episode-browser" id="episodeBrowser">
+            <div class="episode-browser-header">
+              <div>
+                <strong>Episodes</strong>
+                <div style="color: var(--muted); font-size: 0.86rem;" id="episodeBrowserHint">Select a season to browse episodes.</div>
+              </div>
+              <div class="controls">
+                <select id="seasonSelect" aria-label="Season"></select>
+              </div>
+            </div>
+            <div class="episode-carousel">
+              <button class="episode-arrow" id="episodeLeftArrow" type="button" aria-label="Previous episodes">◀</button>
+              <div class="episode-grid" id="episodeGrid"></div>
+              <button class="episode-arrow" id="episodeRightArrow" type="button" aria-label="Next episodes">▶</button>
             </div>
           </div>
 
-          <div class="rating-box">
-            <strong id="movieRating">8.8</strong>
-            <span>Rating</span>
+          <div class="movie-info">
+            <div class="movie-title-row">
+              <div>
+                <h1 id="movieTitle">Select something to watch</h1>
+                <div class="hero-meta">
+                  <span class="pill" id="movieGenre">-</span>
+                  <span class="pill" id="movieYear">-</span>
+                  <span class="pill" id="movieRuntime">-</span>
+                  <span class="pill" id="movieLanguage">-</span>
+                </div>
+              </div>
+
+              <div class="rating-box">
+                <strong id="movieRating">-</strong>
+                <span>Rating</span>
+              </div>
+            </div>
+
+            <p class="movie-description" id="movieDescription">Pick a title from the home screen to load details.</p>
+
+            <div class="info-grid">
+              <div class="info-item">
+                <small>Director / Creator</small>
+                <strong id="movieDirector">-</strong>
+              </div>
+              <div class="info-item">
+                <small>Studio / Network</small>
+                <strong id="movieStudio">-</strong>
+              </div>
+              <div class="info-item">
+                <small>Release</small>
+                <strong id="movieRelease">-</strong>
+              </div>
+              <div class="info-item">
+                <small>TMDB ID</small>
+                <strong id="movieTmdbId">-</strong>
+              </div>
+            </div>
           </div>
         </div>
-
-        <p class="movie-description" id="movieDescription">
-          Replace this with the actual movie overview for the selected TMDB title.
-        </p>
-
-        <div class="hero-actions" style="margin-bottom: 20px;">
-          <button class="btn btn-primary" onclick="playAlert()">Play</button>
-          <button class="btn btn-secondary" onclick="addToWatchlist()">Add to Watchlist</button>
-          <button class="btn btn-secondary" onclick="shareMovie()">Share</button>
-        </div>
-
-        <div class="info-grid">
-          <div class="info-item">
-            <small>Director</small>
-            <strong id="movieDirector">Director Name</strong>
-          </div>
-          <div class="info-item">
-            <small>Studio</small>
-            <strong id="movieStudio">Studio Name</strong>
-          </div>
-          <div class="info-item">
-            <small>Release</small>
-            <strong id="movieRelease">March 2026</strong>
-          </div>
-          <div class="info-item">
-            <small>TMDB ID</small>
-            <strong id="movieTmdbId">1078605</strong>
-          </div>
-        </div>
+        <div class="text-center text-slate-400 text-xs mt-4">Press Esc to close</div>
       </div>
-    </section>
-
-    <aside class="side-panel">
-      <div class="section-header">
-        <h2>Recommended Movies</h2>
-      </div>
-
-      <div class="section-body">
-        <div class="movie-card" onclick="loadMovie({
-          tmdbId: 1078605,
-          title: 'Midnight Orbit',
-          genre: 'Sci-Fi',
-          year: '2026',
-          runtime: '128 min',
-          language: 'English',
-          rating: '8.8',
-          description: 'A crew stranded beyond the edge of mapped space discovers a signal that may change humanity forever.',
-          director: 'Elena Hart',
-          studio: 'Nova Pictures',
-          release: 'April 2026',
-          quality: '4K',
-          score: '8.8 / 10'
-        })">
-          <div class="movie-thumb"></div>
-          <div class="movie-card-content">
-            <h3>Midnight Orbit</h3>
-            <p>High-stakes sci-fi adventure with a sleek futuristic tone.</p>
-            <div class="hero-meta">
-              <span class="mini-pill">Sci-Fi</span>
-              <span class="mini-pill">2026</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="movie-card" onclick="loadMovie({
-          tmdbId: 872585,
-          title: 'Shadow City',
-          genre: 'Thriller',
-          year: '2025',
-          runtime: '114 min',
-          language: 'English',
-          rating: '8.2',
-          description: 'A detective uncovers a hidden network beneath the city while chasing a case that gets dangerously personal.',
-          director: 'Marcus Vale',
-          studio: 'Blackline Studios',
-          release: 'October 2025',
-          quality: 'HD',
-          score: '8.2 / 10'
-        })">
-          <div class="movie-thumb"></div>
-          <div class="movie-card-content">
-            <h3>Shadow City</h3>
-            <p>Dark urban mystery with suspense, tension, and twists.</p>
-            <div class="hero-meta">
-              <span class="mini-pill">Thriller</span>
-              <span class="mini-pill">2025</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="movie-card" onclick="loadMovie({
-          tmdbId: 667538,
-          title: 'Summer Drive',
-          genre: 'Drama',
-          year: '2024',
-          runtime: '102 min',
-          language: 'English',
-          rating: '7.9',
-          description: 'A heartfelt road story about family, grief, and the moments that slowly put people back together.',
-          director: 'Sophie Lane',
-          studio: 'Northlight',
-          release: 'June 2024',
-          quality: 'HD',
-          score: '7.9 / 10'
-        })">
-          <div class="movie-thumb"></div>
-          <div class="movie-card-content">
-            <h3>Summer Drive</h3>
-            <p>A softer emotional story built around character growth.</p>
-            <div class="hero-meta">
-              <span class="mini-pill">Drama</span>
-              <span class="mini-pill">2024</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="movie-card" onclick="loadMovie({
-          tmdbId: 603692,
-          title: 'Iron Pulse',
-          genre: 'Action',
-          year: '2026',
-          runtime: '119 min',
-          language: 'English',
-          rating: '8.5',
-          description: 'An elite operative must stop a citywide systems collapse after a powerful AI defense network turns hostile.',
-          director: 'David Rowe',
-          studio: 'Vertex Motion',
-          release: 'January 2026',
-          quality: '4K',
-          score: '8.5 / 10'
-        })">
-          <div class="movie-thumb"></div>
-          <div class="movie-card-content">
-            <h3>Iron Pulse</h3>
-            <p>Fast action, heavy tech themes, and blockbuster pacing.</p>
-            <div class="hero-meta">
-              <span class="mini-pill">Action</span>
-              <span class="mini-pill">2026</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </aside>
-  </main>
+    </div>
+  </div>
 
   <section class="content-max row-section mt-8 md:mt-10 space-y-10">
     <div>
@@ -1381,7 +1276,8 @@
     }
 
     function scrollToPlayer() {
-      document.getElementById("playerSection").scrollIntoView({ behavior: "smooth" });
+      // Home-first experience: player opens in modal, not inline.
+      openPlayerModal();
     }
 
     function toggleFullscreen() {
@@ -1390,6 +1286,34 @@
       else if (player.webkitRequestFullscreen) player.webkitRequestFullscreen();
       else if (player.msRequestFullscreen) player.msRequestFullscreen();
     }
+
+    // ---- Modal player open/close ----
+    const playerModalEl = document.getElementById("playerModal");
+    const playerModalBackdropEl = document.getElementById("playerModalBackdrop");
+    const closePlayerBtnEl = document.getElementById("closePlayerBtn");
+
+    function openPlayerModal() {
+      if (!playerModalEl) return;
+      playerModalEl.classList.remove("hidden");
+      // ensure embed is loaded for current selection
+      renderPlayer();
+      document.body.style.overflow = "hidden";
+    }
+
+    function closePlayerModal() {
+      if (!playerModalEl) return;
+      playerModalEl.classList.add("hidden");
+      document.body.style.overflow = "";
+      // stop playback
+      const iframe = document.querySelector(".player-wrap iframe");
+      if (iframe) iframe.src = "about:blank";
+    }
+
+    if (playerModalBackdropEl) playerModalBackdropEl.addEventListener("click", closePlayerModal);
+    if (closePlayerBtnEl) closePlayerBtnEl.addEventListener("click", closePlayerModal);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closePlayerModal();
+    });
 
     document.getElementById("searchInput").addEventListener("input", function () {
       const value = this.value.trim().toLowerCase();
@@ -1510,7 +1434,7 @@
       setActiveType(current.type);
       renderPlayer();
       refreshMetadata().catch(() => {});
-      window.scrollTo({ top: document.getElementById("playerSection").offsetTop - 80, behavior: "smooth" });
+      openPlayerModal();
     }
 
     // ---- Episode browser ----
@@ -1648,6 +1572,8 @@
       genre:   { left: "rowGenreLeft",   right: "rowGenreRight",   grid: "rowGenre" }
     };
 
+    const rowScrollers = {};
+
     function createRowScroller(key) {
       const cfg = rowConfigs[key];
       if (!cfg) return;
@@ -1680,8 +1606,10 @@
       }, { passive: false });
 
       update();
+      rowScrollers[key] = { update, grid };
     }
 
+    // Initialize scrollers once (buttons + listeners), then we call update after data loads.
     ["top10","trending","netflix","topRated","genre"].forEach(createRowScroller);
 
     function buildTitleCard(item) {
@@ -1718,6 +1646,123 @@
       });
 
       return div;
+    }
+
+    // ---- Hero auto-preview (6 picks, advance every 8s) ----
+    let heroItems = [];
+    let heroIndex = 0;
+    let heroTimer = null;
+
+    const heroBackdropEl = document.getElementById("heroBackdrop");
+    const heroTitleEl = document.getElementById("heroTitle");
+    const heroTextEl = document.getElementById("heroText");
+    const heroGenreEl = document.getElementById("heroGenre");
+    const heroYearEl = document.getElementById("heroYear");
+    const heroScoreEl = document.getElementById("heroScore");
+    const heroTypePillEl = document.getElementById("heroTypePill");
+    const heroDotsEl = document.getElementById("heroDots");
+    const heroPlayBtn = document.getElementById("heroPlayBtn");
+    const heroMoreBtn = document.getElementById("heroMoreBtn");
+
+    function setHeroBackdrop(path) {
+      const img = path ? tmdbImageUrl(path, "original") : "";
+      heroBackdropEl.style.backgroundImage = img ? `url('${img}')` : "";
+      heroBackdropEl.style.backgroundSize = "cover";
+      heroBackdropEl.style.backgroundPosition = "center";
+      heroBackdropEl.style.filter = "saturate(1.05) contrast(1.05)";
+      heroBackdropEl.style.transform = "scale(1.02)";
+    }
+
+    function setHeroDots() {
+      if (!heroDotsEl) return;
+      heroDotsEl.innerHTML = "";
+      heroItems.forEach((_, i) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = `h-2.5 w-2.5 rounded-full border border-white/30 transition ${i === heroIndex ? "bg-white/90" : "bg-white/10 hover:bg-white/20"}`;
+        b.addEventListener("click", () => {
+          heroIndex = i;
+          renderHero();
+          restartHeroTimer();
+        });
+        heroDotsEl.appendChild(b);
+      });
+    }
+
+    function renderHero() {
+      if (!heroItems.length) return;
+      const item = heroItems[heroIndex];
+      const isTv = item.media_type === "tv";
+      const title = isTv ? item.name : item.title;
+      const year = formatYear(isTv ? item.first_air_date : item.release_date);
+      const rating = item.vote_average ? item.vote_average.toFixed(1) : "-";
+      const overview = item.overview || "No description available.";
+      const genreName = item.__genreName || (isTv ? "TV" : "Movie");
+
+      // simple fade update
+      const fade = (el) => {
+        el.style.transition = "opacity 260ms ease, transform 260ms ease";
+        el.style.opacity = "0";
+        el.style.transform = "translateY(6px)";
+        setTimeout(() => {
+          el.style.opacity = "1";
+          el.style.transform = "translateY(0px)";
+        }, 20);
+      };
+
+      setHeroBackdrop(item.backdrop_path || item.poster_path);
+      heroTitleEl.textContent = title || "Featured";
+      heroTextEl.textContent = overview;
+      heroGenreEl.textContent = genreName;
+      heroYearEl.textContent = year;
+      heroScoreEl.textContent = rating;
+      heroTypePillEl.textContent = isTv ? "TV" : "Movie";
+
+      fade(heroTitleEl);
+      fade(heroTextEl);
+
+      setHeroDots();
+
+      const payload = { media_type: isTv ? "tv" : "movie", id: item.id, title };
+      heroPlayBtn.onclick = () => loadFromSearchResult(payload);
+      heroMoreBtn.onclick = () => loadFromSearchResult(payload);
+    }
+
+    function restartHeroTimer() {
+      if (heroTimer) clearInterval(heroTimer);
+      heroTimer = setInterval(() => {
+        if (!heroItems.length) return;
+        heroIndex = (heroIndex + 1) % heroItems.length;
+        renderHero();
+      }, 8000);
+    }
+
+    async function loadHeroItems() {
+      if (!isTmdbConfigured()) return;
+      // "new and highly rated": trending now, filter to decent rating + recent-ish dates when possible
+      const data = await tmdbFetch("/trending/all/day");
+      const raw = (data.results || []).filter(r => (r.vote_average || 0) >= 7.4);
+      heroItems = raw.slice(0, 18).map(r => ({ ...r }));
+      heroItems = heroItems.filter(r => r.backdrop_path || r.poster_path).slice(0, 6);
+      heroIndex = 0;
+
+      // Attach a simple genre name using genre ids from TMDB lists
+      try {
+        const [mg, tg] = await Promise.all([
+          tmdbFetch("/genre/movie/list"),
+          tmdbFetch("/genre/tv/list")
+        ]);
+        const movieMap = new Map((mg.genres || []).map(g => [g.id, g.name]));
+        const tvMap = new Map((tg.genres || []).map(g => [g.id, g.name]));
+        heroItems.forEach(it => {
+          const map = it.media_type === "tv" ? tvMap : movieMap;
+          const id = (it.genre_ids || [])[0];
+          it.__genreName = id ? (map.get(id) || "") : "";
+        });
+      } catch {}
+
+      renderHero();
+      restartHeroTimer();
     }
 
     async function populateRowTop10() {
@@ -1798,6 +1843,7 @@
     if (genreSelectEl) {
       genreSelectEl.addEventListener("change", () => {
         populateRowGenre();
+        if (rowScrollers.genre) setTimeout(() => rowScrollers.genre.update(), 200);
       });
     }
 
@@ -1810,6 +1856,10 @@
         populateRowTopRated(),
         populateRowGenre()
       ]);
+      // After rows populate, update arrow enabled/disabled states.
+      Object.values(rowScrollers).forEach(s => {
+        try { s.update(); } catch {}
+      });
     }
 
     searchResultsEl.addEventListener("mousedown", (e) => {
@@ -2020,6 +2070,7 @@
       renderPlayer();
       refreshMetadata().catch(() => {});
       populateAllRows().catch(() => {});
+      loadHeroItems().catch(() => {});
     });
   </script>
 </body>
