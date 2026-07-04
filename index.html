@@ -825,6 +825,114 @@
       line-height: 1.55;
     }
 
+    .search-view {
+      min-height: calc(100vh - 72px);
+      padding: 28px 24px 48px;
+    }
+
+    .search-view-header {
+      max-width: 1300px;
+      margin: 0 auto 24px;
+    }
+
+    .search-view-title {
+      font-size: clamp(1.5rem, 3vw, 2rem);
+      font-weight: 800;
+      margin-bottom: 16px;
+    }
+
+    .search-filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .search-filter-btn {
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 8px 16px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.15s ease;
+    }
+
+    .search-filter-btn:hover {
+      border-color: rgba(255,255,255,0.25);
+      background: rgba(255,255,255,0.08);
+    }
+
+    .search-filter-btn.active {
+      background: white;
+      color: #0f172a;
+      border-color: white;
+    }
+
+    .search-results-grid {
+      max-width: 1300px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 18px 14px;
+    }
+
+    @media (max-width: 640px) {
+      .search-results-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 14px 10px;
+      }
+    }
+
+    .search-result-card {
+      cursor: pointer;
+      transition: transform 0.18s ease;
+    }
+
+    .search-result-card:hover {
+      transform: scale(1.04);
+    }
+
+    .search-result-poster {
+      width: 100%;
+      aspect-ratio: 2 / 3;
+      object-fit: cover;
+      border-radius: 10px;
+      background: #0f172a;
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+    }
+
+    .search-result-name {
+      margin-top: 8px;
+      font-size: 0.92rem;
+      font-weight: 600;
+      line-height: 1.3;
+      display: -webkit-box;
+      line-clamp: 2;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .search-result-meta {
+      margin-top: 4px;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .search-empty {
+      max-width: 1300px;
+      margin: 40px auto 0;
+      text-align: center;
+      color: var(--muted);
+      padding: 48px 20px;
+      border: 1px dashed var(--border);
+      border-radius: 18px;
+    }
+
     @media (max-width: 1100px) {
       .hero-banner,
       .page,
@@ -877,7 +985,7 @@
 <body>
   <nav class="navbar">
     <div class="nav-inner">
-      <div class="logo">Cine<span>Stream</span></div>
+      <div class="logo" style="cursor:pointer;" title="Back to home">Cine<span>Stream</span></div>
       <div id="navMessage" style="flex: 1; text-align: center; color: var(--muted); font-weight: 600; padding: 0 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
       </div>
       <div class="search-box">
@@ -1015,6 +1123,21 @@
   <footer>
     Player route format: <strong>/embed/movie/{tmdbId}</strong> or <strong>/embed/tv/{tmdbId}/{season}/{episode}</strong>
   </footer>
+  </div>
+
+  <!-- Netflix-style search results -->
+  <div id="searchView" class="search-view hidden">
+    <div class="search-view-header content-max">
+      <h1 id="searchViewTitle" class="search-view-title">Search</h1>
+      <div class="search-filter-row">
+        <button type="button" class="search-filter-btn active" data-search-filter="all">All</button>
+        <button type="button" class="search-filter-btn" data-search-filter="movie">Movies</button>
+        <button type="button" class="search-filter-btn" data-search-filter="tv">TV Shows</button>
+      </div>
+      <p id="searchViewCount" class="text-sm text-slate-400"></p>
+    </div>
+    <div id="searchResultsGrid" class="search-results-grid content-max"></div>
+    <div id="searchEmptyState" class="search-empty hidden">No titles found. Try a different keyword.</div>
   </div>
 
   <!-- Title detail page -->
@@ -1182,10 +1305,11 @@
     const VIDSRC_BASE = "https://vidsrc-embed.ru/embed";
     const PLAYBACK_STORAGE_KEY = "cinestream_playback";
 
-    function savePlaybackState(playerOpen, detailOpen) {
+    function savePlaybackState(playerOpen, detailOpen, searchOpen) {
       try {
         const modalOpen = playerModalEl && !playerModalEl.classList.contains("hidden");
         const detailPageOpen = detailViewEl && !detailViewEl.classList.contains("hidden");
+        const searchPageOpen = searchViewEl && !searchViewEl.classList.contains("hidden");
         localStorage.setItem(PLAYBACK_STORAGE_KEY, JSON.stringify({
           type: current.type,
           tmdbId: current.tmdbId,
@@ -1194,7 +1318,9 @@
           provider,
           subtitlesEnabled,
           playerOpen: playerOpen !== undefined ? playerOpen : modalOpen,
-          detailOpen: detailOpen !== undefined ? detailOpen : detailPageOpen
+          detailOpen: detailOpen !== undefined ? detailOpen : detailPageOpen,
+          searchOpen: searchOpen !== undefined ? searchOpen : searchPageOpen,
+          searchQuery: searchPageState.query || ""
         }));
       } catch (_) {}
     }
@@ -1503,7 +1629,8 @@
       if (!playerModalEl) return;
       playerModalEl.classList.add("hidden");
       const detailOpen = detailViewEl && !detailViewEl.classList.contains("hidden");
-      document.body.style.overflow = detailOpen ? "hidden" : "";
+      const searchOpen = searchViewEl && !searchViewEl.classList.contains("hidden");
+      document.body.style.overflow = (detailOpen || searchOpen) ? "hidden" : "";
       const iframe = document.querySelector(".player-wrap iframe");
       if (iframe) iframe.src = "about:blank";
       savePlaybackState(false);
@@ -1519,6 +1646,10 @@
       }
       if (detailViewEl && !detailViewEl.classList.contains("hidden")) {
         closeDetailPage();
+        return;
+      }
+      if (searchViewEl && !searchViewEl.classList.contains("hidden")) {
+        closeSearchPage();
       }
     });
 
@@ -1616,7 +1747,6 @@
       }
       setActiveType(current.type);
       hideSearchResults();
-      if (searchInputEl) searchInputEl.value = "";
       openDetailPage().then(() => {
         if (playAfter) {
           renderPlayer();
@@ -1627,6 +1757,11 @@
 
     // ---- Detail page ----
     const homeViewEl = document.getElementById("homeView");
+    const searchViewEl = document.getElementById("searchView");
+    const searchResultsGridEl = document.getElementById("searchResultsGrid");
+    const searchViewTitleEl = document.getElementById("searchViewTitle");
+    const searchViewCountEl = document.getElementById("searchViewCount");
+    const searchEmptyStateEl = document.getElementById("searchEmptyState");
     const detailViewEl = document.getElementById("detailView");
     const detailBackdropEl = document.getElementById("detailBackdrop");
     const detailVideoWrapEl = document.getElementById("detailVideoWrap");
@@ -1637,24 +1772,182 @@
     const detailSeasonSelectEl = document.getElementById("detailSeasonSelect");
     const detailSimilarGridEl = document.getElementById("detailSimilarGrid");
     let detailVideoMuted = true;
+    let lastViewBeforeDetail = "home";
+    const searchPageState = { query: "", filter: "all", results: [], loading: false };
+
+    function isSearchPageOpen() {
+      return searchViewEl && !searchViewEl.classList.contains("hidden");
+    }
+
+    function setSearchFilter(filter) {
+      searchPageState.filter = filter;
+      document.querySelectorAll("[data-search-filter]").forEach(btn => {
+        btn.classList.toggle("active", btn.getAttribute("data-search-filter") === filter);
+      });
+      renderSearchResultsGrid();
+    }
+
+    function buildSearchResultCard(item) {
+      const isTv = item.media_type === "tv";
+      const title = isTv ? (item.name || "") : (item.title || "");
+      const year = formatYear(isTv ? item.first_air_date : item.release_date);
+      const rating = item.vote_average ? item.vote_average.toFixed(1) : "-";
+      const poster = item.poster_path || item.backdrop_path;
+      const src = poster ? tmdbImageUrl(poster, "w342") : "";
+
+      const div = document.createElement("div");
+      div.className = "search-result-card";
+      div.innerHTML = `
+        <img class="search-result-poster" src="${src}" alt="" loading="lazy" onerror="this.style.display='none'" />
+        <div class="search-result-name">${escapeHtml(title)}</div>
+        <div class="search-result-meta">${escapeHtml(year)} • ⭐ ${escapeHtml(rating)} • ${isTv ? "TV" : "Movie"}</div>
+      `;
+
+      div.addEventListener("click", () => {
+        loadFromSearchResult({
+          media_type: isTv ? "tv" : "movie",
+          id: item.id,
+          title
+        });
+      });
+
+      return div;
+    }
+
+    function renderSearchResultsGrid() {
+      if (!searchResultsGridEl) return;
+
+      const filtered = searchPageState.results.filter(item => {
+        if (searchPageState.filter === "all") return true;
+        return item.media_type === searchPageState.filter;
+      });
+
+      searchResultsGridEl.innerHTML = "";
+
+      if (searchPageState.loading) {
+        searchResultsGridEl.innerHTML = `<div class="text-slate-400 col-span-full py-10">Searching…</div>`;
+        if (searchEmptyStateEl) searchEmptyStateEl.classList.add("hidden");
+        if (searchViewCountEl) searchViewCountEl.textContent = "";
+        return;
+      }
+
+      if (!filtered.length) {
+        if (searchEmptyStateEl) searchEmptyStateEl.classList.remove("hidden");
+        if (searchViewCountEl) searchViewCountEl.textContent = searchPageState.query
+          ? `No results for "${searchPageState.query}"`
+          : "";
+        return;
+      }
+
+      if (searchEmptyStateEl) searchEmptyStateEl.classList.add("hidden");
+      filtered.forEach(item => searchResultsGridEl.appendChild(buildSearchResultCard(item)));
+
+      const label = searchPageState.filter === "all"
+        ? "titles"
+        : searchPageState.filter === "movie" ? "movies" : "TV shows";
+      if (searchViewCountEl) {
+        searchViewCountEl.textContent = `${filtered.length} ${label} found`;
+      }
+    }
+
+    async function fetchSearchPageResults(query) {
+      const pages = await Promise.all([1, 2, 3].map(page =>
+        tmdbFetch("/search/multi", {
+          query,
+          include_adult: "false",
+          page
+        }).catch(() => ({ results: [] }))
+      ));
+
+      const seen = new Set();
+      const results = [];
+      pages.forEach(data => {
+        (data.results || []).forEach(item => {
+          if (item.media_type !== "movie" && item.media_type !== "tv") return;
+          const key = `${item.media_type}-${item.id}`;
+          if (seen.has(key)) return;
+          seen.add(key);
+          results.push(item);
+        });
+      });
+      return results;
+    }
+
+    async function openSearchPage(query, options = {}) {
+      const normalized = (query || "").trim();
+      if (!normalized || !isTmdbConfigured()) return;
+
+      searchPageState.query = normalized;
+      searchPageState.loading = options.reload === false ? false : true;
+      if (options.reload !== false) searchPageState.results = [];
+
+      hideSearchResults();
+      if (homeViewEl) homeViewEl.classList.add("hidden");
+      if (detailViewEl) detailViewEl.classList.add("hidden");
+      if (searchViewEl) searchViewEl.classList.remove("hidden");
+      document.body.style.overflow = "";
+      window.scrollTo({ top: 0, behavior: "auto" });
+
+      if (searchViewTitleEl) {
+        searchViewTitleEl.textContent = `Results for "${normalized}"`;
+      }
+
+      renderSearchResultsGrid();
+      savePlaybackState(undefined, false, true);
+
+      if (options.reload === false) {
+        renderSearchResultsGrid();
+        return;
+      }
+
+      try {
+        const results = await fetchSearchPageResults(normalized);
+        if (searchPageState.query !== normalized) return;
+        searchPageState.results = results;
+        searchPageState.loading = false;
+        renderSearchResultsGrid();
+      } catch (_) {
+        if (searchPageState.query !== normalized) return;
+        searchPageState.loading = false;
+        searchPageState.results = [];
+        renderSearchResultsGrid();
+      }
+    }
+
+    function closeSearchPage() {
+      searchPageState.query = "";
+      searchPageState.results = [];
+      searchPageState.loading = false;
+      if (searchViewEl) searchViewEl.classList.add("hidden");
+      if (homeViewEl) homeViewEl.classList.remove("hidden");
+      if (searchInputEl) searchInputEl.value = "";
+      clearSearchResults();
+      savePlaybackState(undefined, false, false);
+    }
 
     function showHomeView() {
       if (detailViewEl) detailViewEl.classList.add("hidden");
+      if (searchViewEl) searchViewEl.classList.add("hidden");
       if (homeViewEl) homeViewEl.classList.remove("hidden");
+      searchPageState.query = "";
+      searchPageState.results = [];
+      searchPageState.loading = false;
       document.body.style.overflow = "";
       if (detailVideoWrapEl) {
         detailVideoWrapEl.innerHTML = "";
         detailVideoWrapEl.classList.add("hidden");
       }
-      savePlaybackState(undefined, false);
+      savePlaybackState(undefined, false, false);
     }
 
     function showDetailView() {
+      lastViewBeforeDetail = isSearchPageOpen() ? "search" : "home";
       if (homeViewEl) homeViewEl.classList.add("hidden");
+      if (searchViewEl) searchViewEl.classList.add("hidden");
       if (detailViewEl) detailViewEl.classList.remove("hidden");
       document.body.style.overflow = "hidden";
       window.scrollTo({ top: 0, behavior: "auto" });
-      savePlaybackState(undefined, true);
+      savePlaybackState(undefined, true, false);
     }
 
     async function loadDetailBackgroundVideo(type, id) {
@@ -1812,6 +2105,10 @@
     }
 
     function closeDetailPage() {
+      if (lastViewBeforeDetail === "search" && searchPageState.query) {
+        openSearchPage(searchPageState.query, { reload: false }).catch(() => {});
+        return;
+      }
       showHomeView();
     }
 
@@ -2308,45 +2605,34 @@
     });
 
     searchInputEl.addEventListener("focus", () => {
-      if (searchState.results.length) showSearchResults();
+      const query = searchInputEl.value.trim();
+      if (query.length >= 2 && !/^\d+$/.test(query)) {
+        openSearchPage(query, { reload: isSearchPageOpen() && searchPageState.query === query ? false : true }).catch(() => {});
+      } else if (searchState.results.length) {
+        showSearchResults();
+      }
     });
 
     searchInputEl.addEventListener("input", () => {
       const query = searchInputEl.value.trim();
 
-      if (!query || /^\d+$/.test(query)) {
+      if (!query) {
+        if (isSearchPageOpen()) closeSearchPage();
+        else clearSearchResults();
+        return;
+      }
+
+      if (/^\d+$/.test(query)) {
         clearSearchResults();
         return;
       }
 
-      // Drop stale dropdown results as soon as the query changes.
-      if (query.toLowerCase() !== (searchState.lastQuery || "").toLowerCase()) {
-        searchState.results = [];
-        hideSearchResults();
-      }
-
-      if (!isTmdbConfigured()) return;
-
       clearTimeout(searchState.timer);
-      searchState.timer = setTimeout(async () => {
+      searchState.timer = setTimeout(() => {
         const requestQuery = searchInputEl.value.trim();
-        if (!requestQuery || requestQuery !== query) return;
-
-        try {
-          const data = await tmdbFetch("/search/multi", {
-            query: requestQuery,
-            include_adult: "false",
-            page: 1
-          });
-          if (searchInputEl.value.trim() !== requestQuery) return;
-          const results = (data.results || [])
-            .filter(r => r.media_type === "movie" || r.media_type === "tv")
-            .map(normalizeSearchResult);
-          renderSearchDropdown(results);
-        } catch (err) {
-          clearSearchResults();
-        }
-      }, 250);
+        if (!requestQuery || requestQuery.length < 2 || /^\d+$/.test(requestQuery)) return;
+        openSearchPage(requestQuery).catch(() => {});
+      }, 300);
     });
 
     searchInputEl.addEventListener("keydown", function (event) {
@@ -2355,31 +2641,33 @@
       const query = this.value.trim();
       if (!query) return;
 
+      clearTimeout(searchState.timer);
+
       if (/^\d+$/.test(query)) {
         current.tmdbId = Number(query);
         applyCurrentToInputs();
         setActiveType(current.type);
-        searchInputEl.value = "";
         hideSearchResults();
         openDetailPage().catch(() => {});
         return;
       }
 
-      const resultsMatchQuery = searchState.lastQuery &&
-        searchState.lastQuery.toLowerCase() === query.toLowerCase();
-
-      if (isSearchDropdownOpen() && searchState.results.length > 0 && resultsMatchQuery) {
-        loadFromSearchResult(searchState.results[0]);
-        hideSearchResults();
-        return;
-      }
-
-      searchAndLoadByQuery(query).catch(() => {
-        const cards = Array.from(document.querySelectorAll(".movie-card"));
-        const match = cards.find(card => card.innerText.toLowerCase().includes(query.toLowerCase()));
-        if (match) match.click();
-        else alert(`No titles found for "${query}".`);
+      hideSearchResults();
+      openSearchPage(query).catch(() => {
+        alert(`Could not search for "${query}".`);
       });
+    });
+
+    document.querySelectorAll("[data-search-filter]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        setSearchFilter(btn.getAttribute("data-search-filter") || "all");
+      });
+    });
+
+    document.querySelector(".logo")?.addEventListener("click", () => {
+      if (searchInputEl) searchInputEl.value = "";
+      showHomeView();
+      hideSearchResults();
     });
 
     // ---- TV controls ----
@@ -2564,12 +2852,16 @@
         setProvider(saved.provider === "vidsrc" ? "vidsrc" : "vidking");
         setActiveType(current.type);
         if (saved.detailOpen) {
+          if (saved.searchQuery && searchInputEl) searchInputEl.value = saved.searchQuery;
           openDetailPage().then(() => {
             if (saved.playerOpen) {
               openPlayerModal();
               refreshMetadata().catch(() => {});
             }
           }).catch(() => {});
+        } else if (saved.searchOpen && saved.searchQuery) {
+          if (searchInputEl) searchInputEl.value = saved.searchQuery;
+          openSearchPage(saved.searchQuery).catch(() => {});
         } else if (saved.playerOpen) {
           openPlayerModal();
           refreshMetadata().catch(() => {});
