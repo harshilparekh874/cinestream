@@ -933,6 +933,14 @@
       border-radius: 18px;
     }
 
+    .hero-logo {
+      max-width: min(440px, 70vw);
+      max-height: 170px;
+      object-fit: contain;
+      object-position: left center;
+      filter: drop-shadow(0 6px 24px rgba(0,0,0,0.6));
+    }
+
     @media (max-width: 1100px) {
       .hero-banner,
       .page,
@@ -1009,6 +1017,7 @@
           <span class="text-xs text-slate-300/80" id="heroTypePill">Movie</span>
         </div>
 
+        <img id="heroLogo" class="hero-logo hidden" alt="" />
         <h1 id="heroTitle" class="text-4xl md:text-6xl font-extrabold tracking-tight drop-shadow-lg">Featured</h1>
         <div class="mt-4 flex flex-wrap gap-2 items-center text-sm text-slate-200/90">
           <span class="inline-flex items-center gap-1.5"><span class="text-red-500">★</span><span id="heroScore">-</span></span>
@@ -2382,6 +2391,7 @@
     let heroTimer = null;
 
     const heroBackdropEl = document.getElementById("heroBackdrop");
+    const heroLogoEl = document.getElementById("heroLogo");
     const heroTitleEl = document.getElementById("heroTitle");
     const heroTextEl = document.getElementById("heroText");
     const heroGenreEl = document.getElementById("heroGenre");
@@ -2439,6 +2449,24 @@
 
       setHeroBackdrop(item.backdrop_path || item.poster_path);
       heroTitleEl.textContent = title || "Featured";
+
+      if (heroLogoEl) {
+        if (item.__logoPath) {
+          heroLogoEl.src = tmdbImageUrl(item.__logoPath, "w500");
+          heroLogoEl.alt = title || "";
+          heroLogoEl.classList.remove("hidden");
+          heroTitleEl.classList.add("hidden");
+          heroLogoEl.onerror = () => {
+            heroLogoEl.classList.add("hidden");
+            heroTitleEl.classList.remove("hidden");
+          };
+          fade(heroLogoEl);
+        } else {
+          heroLogoEl.classList.add("hidden");
+          heroTitleEl.classList.remove("hidden");
+        }
+      }
+
       heroTextEl.textContent = overview;
       heroGenreEl.textContent = genreName;
       heroYearEl.textContent = year;
@@ -2487,6 +2515,19 @@
           it.__genreName = id ? (map.get(id) || "") : "";
         });
       } catch {}
+
+      // Fetch official title logos (Netflix-style) for each hero pick.
+      await Promise.all(heroItems.map(async (it) => {
+        try {
+          const data = await tmdbFetch(`/${it.media_type}/${it.id}/images`, { include_image_language: "en,null" });
+          const logo = (data.logos || [])
+            .filter(l => l.file_path)
+            .sort((a, b) => (b.vote_average || 0) - (a.vote_average || 0))[0];
+          it.__logoPath = logo ? logo.file_path : "";
+        } catch {
+          it.__logoPath = "";
+        }
+      }));
 
       renderHero();
       restartHeroTimer();
