@@ -29,6 +29,7 @@
         linear-gradient(180deg, #06070b 0%, #0a0a0f 100%);
       color: var(--text);
       min-height: 100vh;
+      overflow-x: hidden;
     }
 
     .navbar {
@@ -706,8 +707,15 @@
       position: fixed;
       inset: 0;
       z-index: 60;
+      overflow-x: hidden;
       overflow-y: auto;
       background: #000;
+    }
+
+    .detail-media-layer {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
     }
 
     .detail-backdrop {
@@ -716,7 +724,6 @@
       background-size: cover;
       background-position: center top;
       filter: saturate(1.05);
-      transform: scale(1.05);
     }
 
     .detail-video-wrap {
@@ -730,10 +737,10 @@
       position: absolute;
       top: 50%;
       left: 50%;
-      width: 120vw;
-      height: 67.5vw;
-      min-height: 120vh;
-      min-width: 213vh;
+      width: 177.78vh;
+      height: 100vh;
+      min-width: 100%;
+      min-height: 56.25vw;
       transform: translate(-50%, -50%);
       border: 0;
     }
@@ -1012,7 +1019,7 @@
 
   <!-- Title detail page -->
   <div id="detailView" class="detail-view hidden">
-    <div class="absolute inset-0">
+    <div class="detail-media-layer">
       <div id="detailBackdrop" class="detail-backdrop"></div>
       <div id="detailVideoWrap" class="detail-video-wrap hidden"></div>
       <div class="absolute inset-0 bg-gradient-to-r from-black/90 via-black/70 to-black/30"></div>
@@ -1525,42 +1532,14 @@
       });
     });
 
-    document.getElementById("searchInput").addEventListener("keyup", function (event) {
-      if (event.key !== "Enter") return;
-
-      const query = this.value.trim();
-      if (!query) return;
-
-      if (/^\d+$/.test(query)) {
-        current.tmdbId = Number(query);
-        applyCurrentToInputs();
-        setActiveType(current.type);
-        searchInputEl.value = "";
-        openDetailPage().catch(() => {});
-        return;
-      }
-
-      // Name search via TMDB (preferred)
-      // If dropdown is open, enter picks the first result.
-      if (searchState.results.length > 0) {
-        loadFromSearchResult(searchState.results[0]);
-        hideSearchResults();
-        return;
-      }
-
-      searchAndLoadByName(query).catch(() => {
-        // Fallback: click matching recommended card
-        const cards = Array.from(document.querySelectorAll(".movie-card"));
-        const match = cards.find(card => card.innerText.toLowerCase().includes(query.toLowerCase()));
-        if (match) match.click();
-        else alert("TMDB search needs an API key. Paste a TMDB ID or click a recommended title.");
-      });
-    });
-
     // ---- Search dropdown (TMDB) ----
     const searchResultsEl = document.getElementById("searchResults");
     const searchInputEl = document.getElementById("searchInput");
-    const searchState = { timer: null, results: [] };
+    const searchState = { timer: null, results: [], lastQuery: "" };
+
+    function isSearchDropdownOpen() {
+      return searchResultsEl && searchResultsEl.style.display === "block";
+    }
 
     function showSearchResults() {
       if (!searchState.results.length) {
@@ -1572,6 +1551,12 @@
 
     function hideSearchResults() {
       searchResultsEl.style.display = "none";
+    }
+
+    function clearSearchResults() {
+      searchState.results = [];
+      searchState.lastQuery = "";
+      hideSearchResults();
     }
 
     function escapeHtml(s) {
@@ -1595,6 +1580,7 @@
 
     function renderSearchDropdown(results) {
       searchState.results = results;
+      searchState.lastQuery = (searchInputEl?.value || "").trim();
       if (!results.length) {
         searchResultsEl.innerHTML = `<div class="result"><div class="left"><div class="title">No results</div><div class="meta">Try a different name</div></div><div class="tag">TMDB</div></div>`;
         showSearchResults();
@@ -2115,7 +2101,6 @@
       heroBackdropEl.style.backgroundSize = "cover";
       heroBackdropEl.style.backgroundPosition = "center";
       heroBackdropEl.style.filter = "saturate(1.05) contrast(1.05)";
-      heroBackdropEl.style.transform = "scale(1.02)";
     }
 
     function setHeroDots() {
@@ -2329,33 +2314,72 @@
     searchInputEl.addEventListener("input", () => {
       const query = searchInputEl.value.trim();
 
-      // Keep old card filter behavior, but power "normal search" via TMDB too.
       if (!query || /^\d+$/.test(query)) {
+        clearSearchResults();
+        return;
+      }
+
+      // Drop stale dropdown results as soon as the query changes.
+      if (query.toLowerCase() !== (searchState.lastQuery || "").toLowerCase()) {
         searchState.results = [];
         hideSearchResults();
-        return;
       }
 
       if (!isTmdbConfigured()) return;
 
       clearTimeout(searchState.timer);
       searchState.timer = setTimeout(async () => {
+        const requestQuery = searchInputEl.value.trim();
+        if (!requestQuery || requestQuery !== query) return;
+
         try {
-          // Multi search returns both movies + tv (best UX).
           const data = await tmdbFetch("/search/multi", {
-            query,
+            query: requestQuery,
             include_adult: "false",
             page: 1
           });
+          if (searchInputEl.value.trim() !== requestQuery) return;
           const results = (data.results || [])
             .filter(r => r.media_type === "movie" || r.media_type === "tv")
             .map(normalizeSearchResult);
           renderSearchDropdown(results);
         } catch (err) {
-          searchState.results = [];
-          hideSearchResults();
+          clearSearchResults();
         }
       }, 250);
+    });
+
+    searchInputEl.addEventListener("keydown", function (event) {
+      if (event.key !== "Enter") return;
+
+      const query = this.value.trim();
+      if (!query) return;
+
+      if (/^\d+$/.test(query)) {
+        current.tmdbId = Number(query);
+        applyCurrentToInputs();
+        setActiveType(current.type);
+        searchInputEl.value = "";
+        hideSearchResults();
+        openDetailPage().catch(() => {});
+        return;
+      }
+
+      const resultsMatchQuery = searchState.lastQuery &&
+        searchState.lastQuery.toLowerCase() === query.toLowerCase();
+
+      if (isSearchDropdownOpen() && searchState.results.length > 0 && resultsMatchQuery) {
+        loadFromSearchResult(searchState.results[0]);
+        hideSearchResults();
+        return;
+      }
+
+      searchAndLoadByQuery(query).catch(() => {
+        const cards = Array.from(document.querySelectorAll(".movie-card"));
+        const match = cards.find(card => card.innerText.toLowerCase().includes(query.toLowerCase()));
+        if (match) match.click();
+        else alert(`No titles found for "${query}".`);
+      });
     });
 
     // ---- TV controls ----
@@ -2374,6 +2398,28 @@
     // ---- Type toggle ----
     document.getElementById("typeMovieBtn").addEventListener("click", () => setActiveType("movie"));
     document.getElementById("typeTvBtn").addEventListener("click", () => setActiveType("tv"));
+
+    async function searchAndLoadByQuery(query) {
+      if (!isTmdbConfigured()) throw new Error("TMDB key missing");
+
+      const data = await tmdbFetch("/search/multi", {
+        query,
+        include_adult: "false",
+        page: 1
+      });
+
+      const first = (data.results || []).find(r => r.media_type === "movie" || r.media_type === "tv");
+      if (!first) {
+        alert(`No titles found for "${query}".`);
+        return;
+      }
+
+      loadFromSearchResult({
+        media_type: first.media_type,
+        id: first.id,
+        title: first.media_type === "tv" ? first.name : first.title
+      });
+    }
 
     async function searchAndLoadByName(query) {
       if (!isTmdbConfigured()) throw new Error("TMDB key missing");
