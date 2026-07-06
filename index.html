@@ -1681,16 +1681,26 @@
     const playerModalBackdropEl = document.getElementById("playerModalBackdrop");
     const closePlayerBtnEl = document.getElementById("closePlayerBtn");
 
-    function openPlayerModal() {
+    function openPlayerModal(options = {}) {
       if (!playerModalEl) return;
       playerModalEl.classList.remove("hidden");
       // ensure embed is loaded for current selection
       renderPlayer();
       document.body.style.overflow = "hidden";
       savePlaybackState(true);
+      syncAppHistory(appRoute("player", {
+        type: current.type,
+        id: current.tmdbId,
+        season: current.season,
+        episode: current.episode
+      }), "push", options);
     }
 
-    function closePlayerModal() {
+    function closePlayerModal(options = {}) {
+      if (!historySync && !options.skipHistory) {
+        history.back();
+        return;
+      }
       if (!playerModalEl) return;
       playerModalEl.classList.add("hidden");
       const detailOpen = detailViewEl && !detailViewEl.classList.contains("hidden");
@@ -1839,6 +1849,101 @@
     let detailVideoMuted = true;
     let lastViewBeforeDetail = "home";
     const searchPageState = { query: "", filter: "all", results: [], loading: false };
+    let historySync = false;
+
+    function appRoute(view, data = {}) {
+      const state = { _dvhp: true, view };
+      if (view === "search") state.q = data.q || "";
+      if (view === "detail" || view === "player") {
+        state.type = data.type;
+        state.id = data.id;
+        if (data.type === "tv") {
+          state.season = data.season || 1;
+          state.episode = data.episode || 1;
+        }
+      }
+      return state;
+    }
+
+    function routeToUrl(state) {
+      if (!state || state.view === "home") return location.pathname;
+      if (state.view === "search") {
+        return `${location.pathname}#search/${encodeURIComponent(state.q || "")}`;
+      }
+      if (state.view === "detail" || state.view === "player") {
+        let hash = `#/${state.type}/${state.id}`;
+        if (state.type === "tv") hash += `/${state.season || 1}/${state.episode || 1}`;
+        if (state.view === "player") hash += "/play";
+        return location.pathname + hash;
+      }
+      return location.pathname;
+    }
+
+    function parseRouteFromHash() {
+      const raw = (location.hash || "").replace(/^#/, "").replace(/^\//, "");
+      if (!raw) return appRoute("home");
+      if (raw.startsWith("search/")) {
+        return appRoute("search", { q: decodeURIComponent(raw.slice(7)) });
+      }
+      const match = raw.match(/^(movie|tv)\/(\d+)(?:\/(\d+)\/(\d+))?(\/play)?\/?$/);
+      if (match) {
+        const type = match[1];
+        return appRoute(match[5] ? "player" : "detail", {
+          type,
+          id: Number(match[2]),
+          season: type === "tv" ? Number(match[3]) || 1 : undefined,
+          episode: type === "tv" ? Number(match[4]) || 1 : undefined
+        });
+      }
+      return appRoute("home");
+    }
+
+    function syncAppHistory(state, mode = "push", options = {}) {
+      if (historySync || options.skipHistory) return;
+      const url = routeToUrl(state);
+      if (mode === "replace") history.replaceState(state, "", url);
+      else history.pushState(state, "", url);
+    }
+
+    async function applyAppRoute(state) {
+      const route = state && state._dvhp ? state : appRoute("home");
+      historySync = true;
+      try {
+        if (route.view === "home") {
+          closePlayerModal({ skipHistory: true });
+          showHomeView({ skipHistory: true });
+          return;
+        }
+
+        if (route.view === "search") {
+          closePlayerModal({ skipHistory: true });
+          if (searchInputEl) searchInputEl.value = route.q || "";
+          await openSearchPage(route.q, { skipHistory: true, reload: true });
+          return;
+        }
+
+        if (route.view === "detail" || route.view === "player") {
+          current.type = route.type === "tv" ? "tv" : "movie";
+          current.tmdbId = Number(route.id);
+          if (current.type === "tv") {
+            current.season = Number(route.season) || 1;
+            current.episode = Number(route.episode) || 1;
+            applyCurrentToInputs();
+          }
+          setActiveType(current.type);
+          closePlayerModal({ skipHistory: true });
+          await openDetailPage({ skipHistory: true });
+          if (route.view === "player") openPlayerModal({ skipHistory: true });
+        }
+      } finally {
+        historySync = false;
+      }
+    }
+
+    window.addEventListener("popstate", () => {
+      const state = (history.state && history.state._dvhp) ? history.state : parseRouteFromHash();
+      applyAppRoute(state).catch(() => {});
+    });
 
     function isSearchPageOpen() {
       return searchViewEl && !searchViewEl.classList.contains("hidden");
@@ -1942,6 +2047,7 @@
       const normalized = (query || "").trim();
       if (!normalized || !isTmdbConfigured()) return;
 
+      const wasSearchOpen = isSearchPageOpen();
       searchPageState.query = normalized;
       searchPageState.loading = options.reload === false ? false : true;
       if (options.reload !== false) searchPageState.results = [];
@@ -1959,6 +2065,7 @@
 
       renderSearchResultsGrid();
       savePlaybackState(undefined, false, true);
+      syncAppHistory(appRoute("search", { q: normalized }), wasSearchOpen ? "replace" : "push", options);
 
       if (options.reload === false) {
         renderSearchResultsGrid();
@@ -1979,7 +2086,11 @@
       }
     }
 
-    function closeSearchPage() {
+    function closeSearchPage(options = {}) {
+      if (!historySync && !options.skipHistory) {
+        history.back();
+        return;
+      }
       searchPageState.query = "";
       searchPageState.results = [];
       searchPageState.loading = false;
@@ -1990,7 +2101,7 @@
       savePlaybackState(undefined, false, false);
     }
 
-    function showHomeView() {
+    function showHomeView(options = {}) {
       if (detailViewEl) detailViewEl.classList.add("hidden");
       if (searchViewEl) searchViewEl.classList.add("hidden");
       if (homeViewEl) homeViewEl.classList.remove("hidden");
@@ -2003,9 +2114,10 @@
         detailVideoWrapEl.classList.add("hidden");
       }
       savePlaybackState(undefined, false, false);
+      syncAppHistory(appRoute("home"), "replace", options);
     }
 
-    function showDetailView() {
+    function showDetailView(options = {}) {
       lastViewBeforeDetail = isSearchPageOpen() ? "search" : "home";
       if (homeViewEl) homeViewEl.classList.add("hidden");
       if (searchViewEl) searchViewEl.classList.add("hidden");
@@ -2164,17 +2276,27 @@
       refreshMetadata().catch(() => {});
     }
 
-    async function openDetailPage() {
-      showDetailView();
+    async function openDetailPage(options = {}) {
+      showDetailView({ skipHistory: true });
       await populateDetailPage();
+      syncAppHistory(appRoute("detail", {
+        type: current.type,
+        id: current.tmdbId,
+        season: current.season,
+        episode: current.episode
+      }), "push", options);
     }
 
-    function closeDetailPage() {
-      if (lastViewBeforeDetail === "search" && searchPageState.query) {
-        openSearchPage(searchPageState.query, { reload: false }).catch(() => {});
+    function closeDetailPage(options = {}) {
+      if (!historySync && !options.skipHistory) {
+        history.back();
         return;
       }
-      showHomeView();
+      if (lastViewBeforeDetail === "search" && searchPageState.query) {
+        openSearchPage(searchPageState.query, { reload: false, skipHistory: true }).catch(() => {});
+        return;
+      }
+      showHomeView({ skipHistory: true });
     }
 
     if (document.getElementById("detailBackBtn")) {
@@ -2941,8 +3063,15 @@
       document.getElementById("providerVidkingBtn").addEventListener("click", () => setProvider("vidking"));
       document.getElementById("providerVidsrcBtn").addEventListener("click", () => setProvider("vidsrc"));
 
+      const hashRoute = location.hash ? parseRouteFromHash() : null;
       const saved = restorePlaybackState();
-      if (saved && saved.tmdbId) {
+
+      if (hashRoute && hashRoute.view !== "home") {
+        history.replaceState(appRoute("home"), "", location.pathname);
+        applyAppRoute(hashRoute).then(() => {
+          history.replaceState(hashRoute, "", routeToUrl(hashRoute));
+        }).catch(() => {});
+      } else if (saved && saved.tmdbId) {
         current.type = saved.type === "tv" ? "tv" : "movie";
         current.tmdbId = Number(saved.tmdbId);
         current.season = Number(saved.season) || 1;
@@ -2951,22 +3080,30 @@
         applyCurrentToInputs();
         setProvider(saved.provider === "vidsrc" ? "vidsrc" : "vidking");
         setActiveType(current.type);
+        history.replaceState(appRoute("home"), "", location.pathname);
         if (saved.detailOpen) {
           if (saved.searchQuery && searchInputEl) searchInputEl.value = saved.searchQuery;
-          openDetailPage().then(() => {
-            if (saved.playerOpen) {
-              openPlayerModal();
-              refreshMetadata().catch(() => {});
-            }
+          const detailRoute = appRoute(saved.playerOpen ? "player" : "detail", {
+            type: current.type,
+            id: current.tmdbId,
+            season: current.season,
+            episode: current.episode
+          });
+          applyAppRoute(detailRoute).then(() => {
+            history.replaceState(detailRoute, "", routeToUrl(detailRoute));
           }).catch(() => {});
         } else if (saved.searchOpen && saved.searchQuery) {
           if (searchInputEl) searchInputEl.value = saved.searchQuery;
-          openSearchPage(saved.searchQuery).catch(() => {});
+          const searchRoute = appRoute("search", { q: saved.searchQuery });
+          applyAppRoute(searchRoute).then(() => {
+            history.replaceState(searchRoute, "", routeToUrl(searchRoute));
+          }).catch(() => {});
         } else if (saved.playerOpen) {
-          openPlayerModal();
+          openPlayerModal({ skipHistory: true });
           refreshMetadata().catch(() => {});
         }
       } else {
+        history.replaceState(appRoute("home"), "", location.pathname);
         setProvider("vidking");
         setActiveType("movie");
         renderPlayer();
