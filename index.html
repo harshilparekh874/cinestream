@@ -2348,9 +2348,14 @@
 
     episodeGridEl.addEventListener("scroll", updateEpisodeArrows);
 
-    // Disable wheel scrolling so users use arrows instead.
     episodeGridEl.addEventListener("wheel", (e) => {
-      e.preventDefault();
+      const absX = Math.abs(e.deltaX);
+      const absY = Math.abs(e.deltaY);
+      if (absY > absX) return;
+      if (absX > 0) {
+        e.preventDefault();
+        episodeGridEl.scrollBy({ left: e.deltaX, behavior: "auto" });
+      }
     }, { passive: false });
 
     window.addEventListener("resize", updateEpisodeArrows);
@@ -2392,11 +2397,6 @@
       right.addEventListener("click", () => scroll(grid.clientWidth * 0.9));
       grid.addEventListener("scroll", update);
       window.addEventListener("resize", update);
-
-      // disable wheel to encourage arrows
-      grid.addEventListener("wheel", (e) => {
-        e.preventDefault();
-      }, { passive: false });
 
       update();
       rowScrollers[key] = { update, grid };
