@@ -35,10 +35,38 @@
     .navbar {
       position: sticky;
       top: 0;
-      z-index: 50;
+      z-index: 80;
       backdrop-filter: blur(10px);
-      background: rgba(10, 10, 15, 0.75);
+      background: rgba(10, 10, 15, 0.92);
       border-bottom: 1px solid var(--border);
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .nav-home-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 7px 14px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .nav-home-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
     }
 
     .nav-inner {
@@ -1037,7 +1065,10 @@
 <body>
   <nav class="navbar">
     <div class="nav-inner">
-      <div class="logo" style="cursor:pointer;" title="Back to home">dvhp<span>stream</span></div>
+      <div class="nav-left">
+        <div class="logo" style="cursor:pointer;" title="Back to home">dvhp<span>stream</span></div>
+        <button id="navHomeBtn" type="button" class="nav-home-btn" aria-label="Go to home">⌂ Home</button>
+      </div>
       <div id="navMessage" style="flex: 1; text-align: center; color: var(--muted); font-weight: 600; padding: 0 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
       </div>
       <div class="search-box">
@@ -1370,22 +1401,15 @@
     const VIDSRC_BASE = "https://vidsrc-embed.ru/embed";
     const PLAYBACK_STORAGE_KEY = "dvhpstream_playback";
 
-    function savePlaybackState(playerOpen, detailOpen, searchOpen) {
+    function savePlaybackState() {
       try {
-        const modalOpen = playerModalEl && !playerModalEl.classList.contains("hidden");
-        const detailPageOpen = detailViewEl && !detailViewEl.classList.contains("hidden");
-        const searchPageOpen = searchViewEl && !searchViewEl.classList.contains("hidden");
         localStorage.setItem(PLAYBACK_STORAGE_KEY, JSON.stringify({
           type: current.type,
           tmdbId: current.tmdbId,
           season: current.season,
           episode: current.episode,
           provider,
-          subtitlesEnabled,
-          playerOpen: playerOpen !== undefined ? playerOpen : modalOpen,
-          detailOpen: detailOpen !== undefined ? detailOpen : detailPageOpen,
-          searchOpen: searchOpen !== undefined ? searchOpen : searchPageOpen,
-          searchQuery: searchPageState.query || ""
+          subtitlesEnabled
         }));
       } catch (_) {}
     }
@@ -1687,7 +1711,7 @@
       // ensure embed is loaded for current selection
       renderPlayer();
       document.body.style.overflow = "hidden";
-      savePlaybackState(true);
+      savePlaybackState();
       syncAppHistory(appRoute("player", {
         type: current.type,
         id: current.tmdbId,
@@ -1708,7 +1732,7 @@
       document.body.style.overflow = (detailOpen || searchOpen) ? "hidden" : "";
       const iframe = document.querySelector(".player-wrap iframe");
       if (iframe) iframe.src = "about:blank";
-      savePlaybackState(false);
+      savePlaybackState();
     }
 
     if (playerModalBackdropEl) playerModalBackdropEl.addEventListener("click", closePlayerModal);
@@ -2064,7 +2088,7 @@
       }
 
       renderSearchResultsGrid();
-      savePlaybackState(undefined, false, true);
+      savePlaybackState();
       syncAppHistory(appRoute("search", { q: normalized }), wasSearchOpen ? "replace" : "push", options);
 
       if (options.reload === false) {
@@ -2098,7 +2122,7 @@
       if (homeViewEl) homeViewEl.classList.remove("hidden");
       if (searchInputEl) searchInputEl.value = "";
       clearSearchResults();
-      savePlaybackState(undefined, false, false);
+      savePlaybackState();
     }
 
     function showHomeView(options = {}) {
@@ -2113,8 +2137,21 @@
         detailVideoWrapEl.innerHTML = "";
         detailVideoWrapEl.classList.add("hidden");
       }
-      savePlaybackState(undefined, false, false);
+      savePlaybackState();
       syncAppHistory(appRoute("home"), "replace", options);
+    }
+
+    function goHome() {
+      if (searchInputEl) searchInputEl.value = "";
+      hideSearchResults();
+      historySync = true;
+      try {
+        closePlayerModal({ skipHistory: true });
+        showHomeView({ skipHistory: true });
+        history.replaceState(appRoute("home"), "", location.pathname);
+      } finally {
+        historySync = false;
+      }
     }
 
     function showDetailView(options = {}) {
@@ -2124,7 +2161,7 @@
       if (detailViewEl) detailViewEl.classList.remove("hidden");
       document.body.style.overflow = "hidden";
       window.scrollTo({ top: 0, behavior: "auto" });
-      savePlaybackState(undefined, true, false);
+      savePlaybackState();
     }
 
     async function loadDetailBackgroundVideo(type, id) {
@@ -2337,7 +2374,7 @@
         applyCurrentToInputs();
         renderPlayer();
         openPlayerModal();
-        savePlaybackState(true);
+        savePlaybackState();
       });
     }
     if (document.getElementById("detailMuteBtn")) {
@@ -2886,11 +2923,8 @@
       });
     });
 
-    document.querySelector(".logo")?.addEventListener("click", () => {
-      if (searchInputEl) searchInputEl.value = "";
-      showHomeView();
-      hideSearchResults();
-    });
+    document.querySelector(".logo")?.addEventListener("click", goHome);
+    document.getElementById("navHomeBtn")?.addEventListener("click", goHome);
 
     // ---- TV controls ----
     document.getElementById("seasonInput").addEventListener("input", function () {
@@ -3066,12 +3100,11 @@
       const hashRoute = location.hash ? parseRouteFromHash() : null;
       const saved = restorePlaybackState();
 
-      if (hashRoute && hashRoute.view !== "home") {
-        history.replaceState(appRoute("home"), "", location.pathname);
-        applyAppRoute(hashRoute).then(() => {
-          history.replaceState(hashRoute, "", routeToUrl(hashRoute));
-        }).catch(() => {});
-      } else if (saved && saved.tmdbId) {
+      // Always start on home so browser back returns here instead of leaving the site.
+      history.replaceState(appRoute("home"), "", location.pathname);
+      showHomeView({ skipHistory: true });
+
+      if (saved && saved.tmdbId) {
         current.type = saved.type === "tv" ? "tv" : "movie";
         current.tmdbId = Number(saved.tmdbId);
         current.season = Number(saved.season) || 1;
@@ -3080,34 +3113,18 @@
         applyCurrentToInputs();
         setProvider(saved.provider === "vidsrc" ? "vidsrc" : "vidking");
         setActiveType(current.type);
-        history.replaceState(appRoute("home"), "", location.pathname);
-        if (saved.detailOpen) {
-          if (saved.searchQuery && searchInputEl) searchInputEl.value = saved.searchQuery;
-          const detailRoute = appRoute(saved.playerOpen ? "player" : "detail", {
-            type: current.type,
-            id: current.tmdbId,
-            season: current.season,
-            episode: current.episode
-          });
-          applyAppRoute(detailRoute).then(() => {
-            history.replaceState(detailRoute, "", routeToUrl(detailRoute));
-          }).catch(() => {});
-        } else if (saved.searchOpen && saved.searchQuery) {
-          if (searchInputEl) searchInputEl.value = saved.searchQuery;
-          const searchRoute = appRoute("search", { q: saved.searchQuery });
-          applyAppRoute(searchRoute).then(() => {
-            history.replaceState(searchRoute, "", routeToUrl(searchRoute));
-          }).catch(() => {});
-        } else if (saved.playerOpen) {
-          openPlayerModal({ skipHistory: true });
-          refreshMetadata().catch(() => {});
-        }
       } else {
-        history.replaceState(appRoute("home"), "", location.pathname);
         setProvider("vidking");
         setActiveType("movie");
-        renderPlayer();
-        refreshMetadata().catch(() => {});
+      }
+
+      renderPlayer();
+      refreshMetadata().catch(() => {});
+
+      // Only restore a view from URL hash (bookmark/link), not localStorage.
+      if (hashRoute && hashRoute.view !== "home") {
+        history.pushState(hashRoute, "", routeToUrl(hashRoute));
+        applyAppRoute(hashRoute).catch(() => {});
       }
 
       populateAllRows().catch(() => {});
