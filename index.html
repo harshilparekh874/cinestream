@@ -586,21 +586,23 @@
     }
 
     .row-carousel {
-      display: flex;
-      align-items: center;
-      gap: 10px;
+      position: relative;
+    }
+
+    .row-carousel-viewport {
+      position: relative;
+      overflow: hidden;
     }
 
     .row-grid {
-      flex: 1 1 auto;
       display: flex;
       flex-direction: row;
       flex-wrap: nowrap;
-      gap: 14px;
+      gap: 10px;
       overflow-x: auto;
       overflow-y: hidden;
       scroll-behavior: smooth;
-      padding: 4px 0 2px;
+      padding: 4px 0 10px;
       scrollbar-width: none;
     }
 
@@ -609,82 +611,124 @@
     }
 
     .row-arrow-btn {
-      flex: 0 0 auto;
-      width: 40px;
-      height: 40px;
-      border-radius: 999px;
-      background: rgba(15,23,42,0.9);
-      border: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
+      position: absolute;
+      top: 38%;
+      z-index: 20;
+      width: auto;
+      height: auto;
+      padding: 8px 4px;
+      border: none;
+      background: transparent;
+      color: rgba(255, 255, 255, 0.95);
+      font-size: 2.75rem;
+      line-height: 1;
+      font-weight: 300;
       cursor: pointer;
-      transition: 0.15s ease;
+      transform: translateY(-50%);
+      transition: opacity 0.15s ease, transform 0.15s ease;
+      text-shadow: 0 2px 16px rgba(0, 0, 0, 0.9), 0 0 4px rgba(0, 0, 0, 0.8);
+      pointer-events: auto;
     }
 
-    .row-arrow-btn:hover {
-      border-color: rgba(37,99,235,0.7);
-      transform: translateY(-1px);
+    .row-arrow-btn.row-arrow-left {
+      left: 2px;
+    }
+
+    .row-arrow-btn.row-arrow-right {
+      right: 2px;
+    }
+
+    .row-arrow-btn:hover:not(:disabled) {
+      color: white;
+      transform: translateY(-50%) scale(1.08);
     }
 
     .row-arrow-btn:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-      transform: none;
+      opacity: 0;
+      pointer-events: none;
     }
 
     .title-card {
       flex: 0 0 auto;
-      width: 200px;
-      border-radius: 18px;
-      overflow: hidden;
-      background: rgba(15,23,42,0.95);
-      border: 1px solid var(--border);
+      width: 165px;
+      background: transparent;
+      border: none;
       cursor: pointer;
-      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+      transition: transform 0.18s ease;
     }
 
     .title-card:hover {
-      transform: translateY(-4px);
-      border-color: rgba(37,99,235,0.8);
-      box-shadow: 0 18px 45px rgba(0,0,0,0.65);
+      transform: translateY(-2px);
+    }
+
+    .title-poster-wrap {
+      position: relative;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #0f172a;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    }
+
+    .title-rank-badge {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 2;
+      background: linear-gradient(145deg, #e50914 0%, #b81d24 100%);
+      color: white;
+      font-size: 0.62rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      padding: 5px 8px 6px;
+      border-bottom-right-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
     }
 
     .title-thumb {
+      display: block;
       width: 100%;
-      height: 120px;
+      aspect-ratio: 2 / 3;
+      height: auto;
       object-fit: cover;
       background: #020617;
+      transition: transform 0.2s ease;
+    }
+
+    .title-card:hover .title-thumb {
+      transform: scale(1.03);
     }
 
     .title-body {
-      padding: 10px 11px 12px;
+      padding: 8px 2px 0;
     }
 
     .title-name {
-      font-size: 0.98rem;
+      font-size: 0.88rem;
       font-weight: 600;
       margin-bottom: 4px;
-      white-space: nowrap;
+      line-height: 1.3;
+      display: -webkit-box;
+      line-clamp: 2;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
       overflow: hidden;
-      text-overflow: ellipsis;
     }
 
     .title-meta-line {
-      font-size: 0.78rem;
+      font-size: 0.74rem;
       color: var(--muted);
-      margin-bottom: 2px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
+    .title-star {
+      color: #ef4444;
+      margin-right: 2px;
+    }
+
     .title-pill-row {
-      margin-top: 4px;
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
+      display: none;
     }
 
     .title-pill {
@@ -1051,15 +1095,17 @@
   <section class="content-max row-section mt-8 md:mt-10 space-y-10">
     <div>
       <div class="row-header">
-        <h2 class="flex items-center gap-2">
-          <span>Top 10 Today</span>
-          <span class="text-xs px-2 py-0.5 rounded-full bg-red-600/80 text-white font-semibold tracking-wide">HOT</span>
+        <h2 class="flex items-center gap-3">
+          <span class="w-1 h-7 bg-red-600 rounded-full"></span>
+          <span>TOP 10 Today</span>
         </h2>
       </div>
       <div class="row-carousel">
-        <button class="row-arrow-btn" id="rowTop10Left" type="button" aria-label="Previous Top 10">◀</button>
-        <div class="row-grid" id="rowTop10"></div>
-        <button class="row-arrow-btn" id="rowTop10Right" type="button" aria-label="Next Top 10">▶</button>
+        <div class="row-carousel-viewport">
+          <button class="row-arrow-btn row-arrow-left" id="rowTop10Left" type="button" aria-label="Previous Top 10">‹</button>
+          <div class="row-grid" id="rowTop10"></div>
+          <button class="row-arrow-btn row-arrow-right" id="rowTop10Right" type="button" aria-label="Next Top 10">›</button>
+        </div>
       </div>
     </div>
 
@@ -1068,9 +1114,11 @@
         <h2>Trending Today</h2>
       </div>
       <div class="row-carousel">
-        <button class="row-arrow-btn" id="rowTrendingLeft" type="button" aria-label="Previous trending">◀</button>
-        <div class="row-grid" id="rowTrending"></div>
-        <button class="row-arrow-btn" id="rowTrendingRight" type="button" aria-label="Next trending">▶</button>
+        <div class="row-carousel-viewport">
+          <button class="row-arrow-btn row-arrow-left" id="rowTrendingLeft" type="button" aria-label="Previous trending">‹</button>
+          <div class="row-grid" id="rowTrending"></div>
+          <button class="row-arrow-btn row-arrow-right" id="rowTrendingRight" type="button" aria-label="Next trending">›</button>
+        </div>
       </div>
     </div>
 
@@ -1080,9 +1128,11 @@
         <span class="text-xs text-slate-400">Popular Netflix originals & hits</span>
       </div>
       <div class="row-carousel">
-        <button class="row-arrow-btn" id="rowNetflixLeft" type="button" aria-label="Previous Netflix style">◀</button>
-        <div class="row-grid" id="rowNetflix"></div>
-        <button class="row-arrow-btn" id="rowNetflixRight" type="button" aria-label="Next Netflix style">▶</button>
+        <div class="row-carousel-viewport">
+          <button class="row-arrow-btn row-arrow-left" id="rowNetflixLeft" type="button" aria-label="Previous Netflix style">‹</button>
+          <div class="row-grid" id="rowNetflix"></div>
+          <button class="row-arrow-btn row-arrow-right" id="rowNetflixRight" type="button" aria-label="Next Netflix style">›</button>
+        </div>
       </div>
     </div>
 
@@ -1091,9 +1141,11 @@
         <h2>Top Rated</h2>
       </div>
       <div class="row-carousel">
-        <button class="row-arrow-btn" id="rowTopRatedLeft" type="button" aria-label="Previous top rated">◀</button>
-        <div class="row-grid" id="rowTopRated"></div>
-        <button class="row-arrow-btn" id="rowTopRatedRight" type="button" aria-label="Next top rated">▶</button>
+        <div class="row-carousel-viewport">
+          <button class="row-arrow-btn row-arrow-left" id="rowTopRatedLeft" type="button" aria-label="Previous top rated">‹</button>
+          <div class="row-grid" id="rowTopRated"></div>
+          <button class="row-arrow-btn row-arrow-right" id="rowTopRatedRight" type="button" aria-label="Next top rated">›</button>
+        </div>
       </div>
     </div>
 
@@ -1122,9 +1174,11 @@
         </div>
       </div>
       <div class="row-carousel">
-        <button class="row-arrow-btn" id="rowGenreLeft" type="button" aria-label="Previous genre picks">◀</button>
-        <div class="row-grid" id="rowGenre"></div>
-        <button class="row-arrow-btn" id="rowGenreRight" type="button" aria-label="Next genre picks">▶</button>
+        <div class="row-carousel-viewport">
+          <button class="row-arrow-btn row-arrow-left" id="rowGenreLeft" type="button" aria-label="Previous genre picks">‹</button>
+          <div class="row-grid" id="rowGenre"></div>
+          <button class="row-arrow-btn row-arrow-right" id="rowGenreRight" type="button" aria-label="Next genre picks">›</button>
+        </div>
       </div>
     </div>
   </section>
@@ -1195,9 +1249,11 @@
         <h2 class="flex items-center gap-3"><span class="w-1 h-7 bg-red-600 rounded-full"></span> Similar titles</h2>
       </div>
       <div class="row-carousel">
-        <button class="row-arrow-btn" id="detailSimilarLeft" type="button" aria-label="Previous similar">◀</button>
-        <div class="row-grid" id="detailSimilarGrid"></div>
-        <button class="row-arrow-btn" id="detailSimilarRight" type="button" aria-label="Next similar">▶</button>
+        <div class="row-carousel-viewport">
+          <button class="row-arrow-btn row-arrow-left" id="detailSimilarLeft" type="button" aria-label="Previous similar">‹</button>
+          <div class="row-grid" id="detailSimilarGrid"></div>
+          <button class="row-arrow-btn row-arrow-right" id="detailSimilarRight" type="button" aria-label="Next similar">›</button>
+        </div>
       </div>
     </section>
   </div>
@@ -2349,37 +2405,40 @@
     // Initialize scrollers once (buttons + listeners), then we call update after data loads.
     ["top10","trending","netflix","topRated","genre","detailSimilar"].forEach(createRowScroller);
 
-    function buildTitleCard(item) {
+    function buildTitleCard(item, options = {}) {
       const isTv = item.media_type === "tv";
+      const title = isTv ? (item.name || "") : (item.title || "");
       const year = formatYear(isTv ? item.first_air_date : item.release_date);
       const rating = item.vote_average ? item.vote_average.toFixed(1) : "-";
-      const genre = (item.genres && item.genres[0] && item.genres[0].name) || (isTv ? "TV" : "Movie");
-      const img = item.backdrop_path || item.poster_path;
-      const src = img ? tmdbImageUrl(img, "w500") : "";
+      const typeLabel = isTv ? "TV Show" : "Movie";
+      const img = item.poster_path || item.backdrop_path;
+      const src = img ? tmdbImageUrl(img, "w342") : "";
+      const rank = options.rank;
+      const rankBadge = rank
+        ? `<div class="title-rank-badge">TOP ${String(rank).padStart(2, "0")}</div>`
+        : "";
 
       const div = document.createElement("div");
       div.className = "title-card";
       div.setAttribute("data-id", String(item.id));
       div.setAttribute("data-type", isTv ? "tv" : "movie");
       div.innerHTML = `
-        <img class="title-thumb" src="${src}" alt="" loading="lazy" onerror="this.style.display='none'" />
+        <div class="title-poster-wrap">
+          ${rankBadge}
+          <img class="title-thumb" src="${src}" alt="" loading="lazy" onerror="this.style.display='none'" />
+        </div>
         <div class="title-body">
-          <div class="title-name">${escapeHtml(isTv ? (item.name || "") : (item.title || ""))}</div>
-          <div class="title-meta-line">${escapeHtml(year)} • ⭐ ${escapeHtml(rating)}</div>
-          <div class="title-meta-line">${escapeHtml(genre)}</div>
-          <div class="title-pill-row">
-            <span class="title-pill">${isTv ? "TV" : "Movie"}</span>
-          </div>
+          <div class="title-name">${escapeHtml(title)}</div>
+          <div class="title-meta-line"><span class="title-star">★</span> ${escapeHtml(rating)} ${escapeHtml(year)} ${escapeHtml(typeLabel)}</div>
         </div>
       `;
 
       div.addEventListener("click", () => {
-        const payload = {
+        loadFromSearchResult({
           media_type: isTv ? "tv" : "movie",
           id: item.id,
-          title: isTv ? item.name : item.title
-        };
-        loadFromSearchResult(payload);
+          title
+        });
       });
 
       return div;
@@ -2540,7 +2599,7 @@
         const container = document.getElementById("rowTop10");
         if (!container) return;
         container.innerHTML = "";
-        items.forEach(item => container.appendChild(buildTitleCard(item)));
+        items.forEach((item, i) => container.appendChild(buildTitleCard(item, { rank: i + 1 })));
       } catch {}
     }
 
